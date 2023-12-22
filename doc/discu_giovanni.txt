@@ -1,0 +1,45 @@
+---- VISIO DU 22/12 ---- 
+
+- Prendre des kernels de taille IMPAIRE (3x3)
+- Prendre des pooling de taille IMPAIRE (3x3)
+- Exemple : down = nn.Conv2d(1,1,kernel_size=3,stride=2, padding=1) -> découpe l'image en 2
+-> à utiliser SANS pooling, et à combiner avec un upsample avec un scale de x2.
+- Pour décodeur : nn.Sequential(*[}nn.Upsample(scale_factor=2), nn.Conv2d(1, 1, kernel_size=3, padding="same")])
+- Avoir des tailles paires pour le dataset.
+- Essayer sans batchnorm (batchnorm fonctionne bien pour des batch assez élevés (128 minimum))
+- Pour l'accès au serveur : essayer de se connecter avec la commande : ssh piton@vacqueyras.ircam.fr (il faut être connecté au VPN de l'IRCAM)
+ssh <prenom>@vacqueyras.ircam.fr
+
+- Il faut un VPN et être dans le réseau de l'IRCAM (voir les instructions sur le discord)
+- OPENVPN : https://openvpn.net/community-downloads/
+
+- Utiliser Tensorboard pour observer les résultats d'entraînement (loss de reconstruction, etc.). Pour partager les tensorboard : tensorboard --logdir <dossier> --bind_all
+Cette commande va renvoyer un lien http à partager avec tous pour observer les résultats.
+-> il y a une fonction tensorboard dans pytorch qui permet d'avoir plein de graphes.
+
+
+- 29 décembre : Prochaine visio -> terminer la partie MNIST, et partager le lien Tensorboard des résultats et réfléchir à la pipeline des données audio.
+NSynth : télécharger la version test (4000 exemples, léger à télécharger) (sur le site : https://magenta.tensorflow.org/datasets/nsynth#files) et commencer l'implémentation (forward)
+
+Serveurs :
+- Utiliser juste 1 GPU.
+- Gestion de serveur : 
+> code ssh vacqueyras
+> pwd
+> cd /data/multivae
+
+Pour le dosssier src : utiliser des imports absolus (avec des __init__ dans chaque dossier) + possibilité de passer des arguments différents via le terminal directement :
+Dans un script Python :
+>> from dossier.fichier import fonction
+>> from argparse import ArgumentParser
+>> parser = ArgumentParser()
+>> parser.add_argument('--lr', type=float, default=1e-4)
+>> args = parser.parse_args()
+>> print(args.lr)
+ 
+Depuis le dossier root :
+> python -m scripts.train --lr 0.02
+
+
+
+Github copylot : aide à la complétion de code
