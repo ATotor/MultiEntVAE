@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
 
 
-def MNIST_give_dataset(root):
+def MNIST_give_dataset(root='.'):
     training_data = datasets.MNIST(
         root+'/data',
         train=True,
@@ -24,7 +24,7 @@ def MNIST_give_dataset(root):
     return training_data, test_data
 
 
-def MNIST_give_dataloader(root, batch_size):
+def MNIST_give_dataloader(root='.', batch_size=64):
     training_data, test_data = MNIST_give_dataset(root)
     train_dataloader = DataLoader(training_data, batch_size, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size, shuffle=True)

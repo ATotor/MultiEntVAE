@@ -20,14 +20,14 @@ class AE(nn.Module):
         super(AE, self).__init__()
         
         self.encoder = nn.Sequential(
-            LayerEncoder(in_channels, in_channels*2, 3, 2, 1),
-            LayerEncoder(in_channels*2, in_channels*4, 3, 2, 1),
+            LayerEncoder(in_channels, in_channels*6, 4, 2, 3),
+            LayerEncoder(in_channels*6, in_channels*12, 3, 2, 1),
             nn.Dropout2d(p=0.2)
         )
         
         self.decoder = nn.Sequential(
-            LayerDecoder(in_channels*4, in_channels*2, 3, 2, 1, 1),
-            LayerDecoder(in_channels*2, in_channels, 3, 2, 1, 1),
+            LayerDecoder(in_channels*12, in_channels*6, 3, 2, 1, 1),
+            LayerDecoder(in_channels*6, in_channels, 3, 2, 3, 1),
             nn.Dropout2d(p=0.2)
             )
 
@@ -75,68 +75,72 @@ class LayerDecoder(nn.Module):
 
 class VAE(AE):
     
-    def __init__(self, latent_dims):
+    def __init__(self, in_channels=1):
         super(VAE, self).__init__()
         self.mu = nn.Sequential(
-            nn.Linear(4*7*7, latent_dims), 
-            nn.ReLU()
-        )
+            nn.Conv2d(in_channels*12, in_channels*12, 3, 2, 1),
+            nn.ReLU(inplace=True),
+            )
         self.sigma = nn.Sequential(
-            nn.Linear(4*7*7, latent_dims),
-            nn.Softplus())
-        self.img_from_sample = nn.Sequential(
-            nn.Linear(latent_dims, 4*7*7),
-            nn.ReLU())
+            nn.Conv2d(in_channels*12, in_channels*12, 3, 2, 1),
+            nn.Softplus()
+            )
+        self.decode_layer = nn.Sequential(
+            nn.ConvTranspose2d(in_channels*12, in_channels*12, 3, 2, 1, 1),
+            nn.ReLU(inplace=True)
+            )
         
     def encode(self, x):
         
         x_hidden = self.encoder(x)
-        x_hidden = torch.reshape(x_hidden, (-1, 4*7*7))
         mu = self.mu(x_hidden)
         sigma = self.sigma(x_hidden)
         
         return mu, sigma
     
     def decode(self, z):
+        z = self.decode_layer(z)
         return self.decoder(z)
 
     def forward(self, x):
         # Encode the inputs
-        z_params = self.encode(x)
-        # Obtain latent samples and latent loss
-        z_tilde, kl_div = self.latent(x, z_params)
-        z_tilde = self.img_from_sample(z_tilde)
-        z_tilde = torch.reshape(z_tilde, (-1, 4, 7, 7))
+        mu, sigma = self.encode(x)
+        # Obtain latent samples
+        z = self.latent(x, mu, sigma)
         # Decode the samples
-        x_tilde = self.decode(z_tilde)
-        return x_tilde, kl_div
+        x_tilde = self.decode(z)
+        return x_tilde
     
-    def latent(self, x, z_params):
-        z = z_params[0] + torch.randn(z_params[0].shape[-1]) * z_params[1]
-        kl_div = 1/2*torch.sum(1 + torch.log((z_params[1])**2) - 
-                               (z_params[0])**2 - (z_params[1])**2)
-        
-        return z, kl_div
+    def latent(self, x, mu, sigma):
+        z = mu + torch.randn(sigma.shape[-3], sigma.shape[-2], sigma.shape[-1]) * sigma
+        return z
 
 
 def train_VAE(model, dataloader, epochs=5, lr=1e-3):
     optimizer = torch.optim.Adam(model.parameters(), lr)
-    criterion = torch.nn.MSELoss(reduction='sum')
+    criterion_1 = torch.nn.MSELoss(reduction='sum')
+    criterion_2 = torch.nn.KLDivLoss(reduction='sum')
     loss_tensor = torch.tensor([])
     
     for epoch in range(1, epochs + 1):
         full_loss = torch.Tensor([0])
         for i, (x, _) in enumerate(dataloader):
-            loss = criterion(model(x)[0], x)
+            x_tilde = model(x)
+            #print(criterion_1(x_tilde, x), criterion_2(x_tilde, x))
+            loss = criterion_1(x_tilde, x) + criterion_2(x_tilde, x)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             full_loss += loss
         loss_tensor = torch.cat([loss_tensor, full_loss])
-        print(full_loss)
+        print('Step ',epoch,' over ',epochs,full_loss[0])
         
     return model, loss_tensor
 
+
+def load_model(file_name):
+    return torch.load('results/'+file_name)
+    
 
 def save_model_and_loss(model, loss):
     with torch.no_grad():
@@ -144,11 +148,3 @@ def save_model_and_loss(model, loss):
         torch.save(model, 
                    './results/VAE_'+date_time)
         np.save('./results/loss_'+date_time, loss)
-        
-def disp_loss(loss):
-    with torch.no_grad():
-        plt.figure(figsize=(15,5))
-        plt.plot(loss)
-        plt.ylabel('Loss')
-        plt.xlabel('Epoch')
-        plt.show()
