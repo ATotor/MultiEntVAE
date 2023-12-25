@@ -19,25 +19,40 @@ parser = ArgumentParser()
 parser.add_argument('--epochs', type=int, default=5)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--disp', type=bool, default=True)
-parser.add_argument('--save', type=bool, default=False)
+parser.add_argument('--no-disp', action="store_false")
+parser.add_argument('--no-save', action="store_false")
+parser.add_argument('--load', action="store_true", help="Load model instead of training")
 args = parser.parse_args()
 
 epochs = args.epochs
 lr = args.lr
 batch_size = args.batch_size
-disp = args.disp
-save = args.save
+disp = args.no_disp
+save = args.no_save
+load = args.load
 
 train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size)
 
-model = VAE()
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = VAE().to(device)
 
-model, loss = train_VAE(model, train_dataloader, epochs, lr)    
+log_dir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+writer = SummaryWriter(log_dir) if disp else None
 
+if load is False :
+    print("Training model")
+    model, loss = train_VAE(model, train_dataloader, epochs, lr,device,writer)    
+else:
+    print("Loading model")
+    model = load_model(find_most_recent_VAE())
+    model = model.to(device)
+    loss = None
+    
 if disp:
-    disp_loss(loss)
-    disp_MNIST_example(model, test_dataloader)
+    #if loss :     disp_loss(loss)
+    #disp_MNIST_example(model, test_dataloader)
+    tensorboard_writer(model,test_dataloader,writer,device)
     
 if save:
-    save_model_and_loss(model, loss)
+    save_model(model)
+    #if loss:    save_loss(loss)

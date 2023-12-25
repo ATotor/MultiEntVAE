@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -112,19 +112,20 @@ class VAE(AE):
         return x_tilde
     
     def latent(self, x, mu, sigma):
-        z = mu + torch.randn(sigma.shape[-3], sigma.shape[-2], sigma.shape[-1]) * sigma
+        z = mu + sigma*torch.randn(sigma.shape[-3], sigma.shape[-2], sigma.shape[-1],device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
         return z
 
 
-def train_VAE(model, dataloader, epochs=5, lr=1e-3):
+def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None):
     optimizer = torch.optim.Adam(model.parameters(), lr)
     criterion_1 = torch.nn.MSELoss(reduction='sum')
     criterion_2 = torch.nn.KLDivLoss(reduction='sum')
-    loss_tensor = torch.tensor([])
+    loss_tensor = torch.tensor([]).to(device)
     
     for epoch in range(1, epochs + 1):
-        full_loss = torch.Tensor([0])
+        full_loss = torch.Tensor([0]).to(device)
         for i, (x, _) in enumerate(dataloader):
+            x = x.to(device)
             x_tilde = model(x)
             #print(criterion_1(x_tilde, x), criterion_2(x_tilde, x))
             loss = criterion_1(x_tilde, x) + criterion_2(x_tilde, x)
@@ -133,18 +134,36 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3):
             optimizer.step()
             full_loss += loss
         loss_tensor = torch.cat([loss_tensor, full_loss])
+        if writer is not None: 
+            writer.add_scalar("Loss/train", full_loss.item(), epoch) 
         print('Step ',epoch,' over ',epochs,full_loss[0])
         
     return model, loss_tensor
 
+def find_most_recent_VAE():
+    found_files = []
+    for _, _, files in os.walk("results"):
+        for file in files:
+            if len(file)>4 and file[:4] == "VAE_":
+                strdate = file[4:]
+                date_object = datetime.strptime(strdate,"%d-%m-%Y_%H_%M")
+                found_files.append(date_object)
+    if found_files:
+        found_date = (sorted(found_files)[-1]).strftime("%d-%m-%Y_%H_%M")
+        most_recent_file = "VAE_"+found_date
+        return most_recent_file
+    else:
+        raise Exception("No model found")
 
 def load_model(file_name):
     return torch.load('results/'+file_name)
     
 
-def save_model_and_loss(model, loss):
+def save_model(model):
     with torch.no_grad():
         date_time = datetime.now().strftime("%d-%m-%Y_%H_%M")
         torch.save(model, 
-                   './results/VAE_'+date_time)
-        np.save('./results/loss_'+date_time, loss)
+                   os.path.join("results","VAE_"+date_time))
+def save_loss(loss):
+    date_time = datetime.now().strftime("%d-%m-%Y_%H_%M")
+    np.save(os.path.join("results","loss_"+date_time), loss)

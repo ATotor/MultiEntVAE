@@ -2,6 +2,9 @@
 
 import torch
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
+import torchvision
+
 
 def disp_loss(loss):
     with torch.no_grad():
@@ -20,3 +23,13 @@ def disp_MNIST_example(model, dataloader):
             ax[0,i].imshow(x[i].reshape(28,28), cmap="gray")
             ax[1,i].imshow(xbar[i].reshape(28,28), cmap="gray")
     plt.show()
+
+def tensorboard_writer(model, dataloader,writer,device):
+    model.eval()
+    with torch.no_grad():
+        images, labels = next(iter(dataloader))
+        images = images.to(device)
+        grid = torchvision.utils.make_grid(images)
+        writer.add_image('images', grid, 0)
+        writer.add_graph(model, images)
+        writer.close()
