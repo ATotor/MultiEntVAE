@@ -4,7 +4,8 @@ import torch
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
-
+from librosa import griffinlim
+from soundfile import write
 
 def disp_loss(loss):
     with torch.no_grad():
@@ -32,4 +33,18 @@ def tensorboard_writer(model, dataloader,writer,device):
         grid = torchvision.utils.make_grid(images)
         writer.add_image('images', grid, 0)
         writer.add_graph(model, images)
+
+        init_audio = griffinlim(images[0].cpu().numpy(),n_fft=2054,hop_length=488)
+        init_audio = torch.Tensor(init_audio)
+        writer.add_audio("Initial audio",init_audio,sample_rate = 16000)
+
+        output = model(images)
+        gen_audio = griffinlim(output[0].cpu().numpy(),n_fft=2054,hop_length=488)
+        gen_audio = torch.Tensor(gen_audio)
+        writer.add_audio("Generated audio",gen_audio,sample_rate = 16000)
+
+
+        for i in range(len(gen_audio[0])): 
+            writer.add_scalar("Generated Waveform",gen_audio[0][i],i)
+            writer.add_scalar("Initial Waveform",init_audio[0][i],i)
         writer.close()

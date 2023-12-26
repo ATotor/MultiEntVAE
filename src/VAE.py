@@ -89,7 +89,7 @@ class VAE(AE):
             nn.ConvTranspose2d(in_channels*12, in_channels*12, 3, 2, 1, 1),
             nn.ReLU(inplace=True)
             )
-        
+
     def encode(self, x):
         
         x_hidden = self.encoder(x)

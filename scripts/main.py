@@ -31,7 +31,8 @@ disp = args.no_disp
 save = args.no_save
 load = args.load
 
-train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size)
+#train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size)
+train_dataloader, test_dataloader = NSYNTH_give_dataloader(batch_size=batch_size)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = VAE().to(device)
