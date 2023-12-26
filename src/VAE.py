@@ -22,13 +22,13 @@ class AE(nn.Module):
         self.encoder = nn.Sequential(
             LayerEncoder(in_channels, in_channels*6, 4, 2, 3),
             LayerEncoder(in_channels*6, in_channels*12, 3, 2, 1),
-            nn.Dropout2d(p=0.2)
+           # nn.Dropout2d(p=0.2)
         )
         
         self.decoder = nn.Sequential(
             LayerDecoder(in_channels*12, in_channels*6, 3, 2, 1, 1),
             LayerDecoder(in_channels*6, in_channels, 3, 2, 3, 1),
-            nn.Dropout2d(p=0.2)
+            #nn.Dropout2d(p=0.2)
             )
 
     def forward(self, x):
@@ -116,7 +116,7 @@ class VAE(AE):
         return z
 
 
-def train_VAE(model, dataloader, epochs=5, lr=1e-3):
+def train_VAE(model, dataloader, epochs=5, lr=1e-3, beta=1.):
     optimizer = torch.optim.Adam(model.parameters(), lr)
     criterion_1 = torch.nn.MSELoss(reduction='sum')
     criterion_2 = torch.nn.KLDivLoss(reduction='sum')
@@ -127,7 +127,7 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3):
         for i, (x, _) in enumerate(dataloader):
             x_tilde = model(x)
             #print(criterion_1(x_tilde, x), criterion_2(x_tilde, x))
-            loss = criterion_1(x_tilde, x) + criterion_2(x_tilde, x)
+            loss = criterion_1(x_tilde, x) + beta*criterion_2(x_tilde, x)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

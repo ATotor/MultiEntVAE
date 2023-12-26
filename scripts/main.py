@@ -18,6 +18,7 @@ from src.plots import *
 parser = ArgumentParser()
 parser.add_argument('--epochs', type=int, default=5)
 parser.add_argument('--lr', type=float, default=1e-3)
+parser.add_argument('--beta', type=float, default=1.)
 parser.add_argument('--batch_size', type=int, default=64)
 parser.add_argument('--disp', type=bool, default=True)
 parser.add_argument('--save', type=bool, default=False)
@@ -25,6 +26,7 @@ args = parser.parse_args()
 
 epochs = args.epochs
 lr = args.lr
+beta = args.beta
 batch_size = args.batch_size
 disp = args.disp
 save = args.save
@@ -33,7 +35,7 @@ train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size
 
 model = VAE()
 
-model, loss = train_VAE(model, train_dataloader, epochs, lr)    
+model, loss = train_VAE(model, train_dataloader, epochs, lr, beta)    
 
 if disp:
     disp_loss(loss)
