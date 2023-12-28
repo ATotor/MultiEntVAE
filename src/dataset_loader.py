@@ -38,7 +38,7 @@ def NSYNTH_give_dataset(root='.'):
     training_data = NsynthDataset(  
             json_file = os.path.join(root,"data","nsynth-test","examples.json"),
             sound_dir = os.path.join(root,"data","nsynth-test","audio") ,
-            transform = Spectrogram(n_fft=2054,hop_length=488) )
+            transform = Spectrogram(n_fft=2054,hop_length=472) )
     test_data = training_data #A CHANGER
     
     return training_data, test_data

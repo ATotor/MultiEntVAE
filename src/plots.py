@@ -26,20 +26,25 @@ def disp_MNIST_example(model, dataloader):
     plt.show()
 
 def tensorboard_writer(model, dataloader,writer,device):
+    print("Creating logs")
     model.eval()
     with torch.no_grad():
         images, labels = next(iter(dataloader))
         images = images.to(device)
+        output = model(images)
         grid = torchvision.utils.make_grid(images)
         writer.add_image('images', grid, 0)
         writer.add_graph(model, images)
 
-        init_audio = griffinlim(images[0].cpu().numpy(),n_fft=2054,hop_length=488)
+        writer.add_image('Initial Spectrogram',images[0])
+        writer.add_image('Generated Spectrogram',output[0])
+
+        init_audio = griffinlim(images[0].cpu().numpy(),n_fft=2054,hop_length=472)
         init_audio = torch.Tensor(init_audio)
         writer.add_audio("Initial audio",init_audio,sample_rate = 16000)
 
-        output = model(images)
-        gen_audio = griffinlim(output[0].cpu().numpy(),n_fft=2054,hop_length=488)
+        
+        gen_audio = griffinlim(output[0].cpu().numpy(),n_fft=2054,hop_length=472)
         gen_audio = torch.Tensor(gen_audio)
         writer.add_audio("Generated audio",gen_audio,sample_rate = 16000)
 

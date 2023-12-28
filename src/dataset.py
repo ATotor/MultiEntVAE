@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+import torch
 from torch.utils.data import Dataset, DataLoader
 import torchaudio
 
@@ -17,6 +18,11 @@ class NsynthDataset(Dataset):
     def __getitem__(self, idx):
         note_str = self.json['note_str'].iloc[idx]
         waveform, sampling_rate = torchaudio.load(os.path.join(self.sound_dir,note_str+".wav"))
+        waveform = waveform[:, :32000]
+        env = torch.ones_like(waveform)
+        env[:,-8000:] = torch.linspace(1, 0, 8000)
+        waveform = waveform * env
+
         spectrogram = self.transform(waveform)
         return spectrogram, self.json['pitch'].iloc[idx]
 
