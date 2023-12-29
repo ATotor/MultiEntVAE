@@ -43,3 +43,25 @@ Depuis le dossier root :
 
 
 Github copylot : aide à la complétion de code
+
+---- VISIO DU 29/12 ---- 
+
+- Datasets trouvales sur le serveur dans /data/giovanni/datasets/nsynth
+
+- Créer un dossier local avec le repo GitHub sur le serveur
+
+- Faire varier beta pour 0.1, 1, 4
+
+- tensorboard --logdir runs/ --port 54636 --bind_all
+
+- Restreindre les pitch dans le dataset NSynth pour réduire un peu sa taille
+
+- nfft=1024, nhop=256
+
+- rdv mardi, avoir fin iMNIST d'ici là
+
+- tester les modèles conditionnels sur MNIST
+
+- Mardi soir 18h
+
+- 

@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 # import torch.distributions as distrib
 # import torchvision
 # import matplotlib
@@ -116,7 +117,8 @@ class VAE(AE):
         return z
 
 
-def train_VAE(model, dataloader, epochs=5, lr=1e-3, beta=1.):
+def train_VAE(model, dataloader, writer, epochs=5, lr=1e-3, beta=1.):
+    model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr)
     criterion_1 = torch.nn.MSELoss(reduction='sum')
     criterion_2 = torch.nn.KLDivLoss(reduction='sum')
@@ -133,7 +135,9 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, beta=1.):
             optimizer.step()
             full_loss += loss
         loss_tensor = torch.cat([loss_tensor, full_loss])
+        writer.add_scalar('Loss/train', full_loss, epoch)
         print('Step ',epoch,' over ',epochs,full_loss[0])
+    model.eval()
         
     return model, loss_tensor
 

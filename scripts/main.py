@@ -35,7 +35,11 @@ train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size
 
 model = VAE()
 
-model, loss = train_VAE(model, train_dataloader, epochs, lr, beta)    
+writer = SummaryWriter()
+
+model, loss = train_VAE(model, train_dataloader, writer, epochs, lr, beta)
+disp_MNIST_img(model, test_dataloader, writer)
+writer.close()
 
 if disp:
     disp_loss(loss)

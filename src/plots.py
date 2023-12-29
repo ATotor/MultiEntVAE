@@ -4,6 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
+import numpy as np
 
 def disp_loss(loss):
     with torch.no_grad():
@@ -36,11 +37,21 @@ def disp_MNIST_latent(model, dims=(4,4), n_channels=12):
     plt.show()
     
     
-def plot_MNNIST_img(model, dataloader):
+def disp_MNIST_img(model, dataloader, writer):
     x,_ = next(iter(dataloader))
-    writer = SummaryWriter()
     
     grid = torchvision.utils.make_grid(x)
-    writer.add_image('images', grid, 0)
-    writer.add_graph(model, x)
+    writer.add_image('images/ground_truth', grid)
+    grid = torchvision.utils.make_grid(model(x))
+    writer.add_image('images/model', grid)
+    
+
+def disp_test():
+    writer = SummaryWriter()
+
+    for n_iter in range(100):
+        writer.add_scalar('Loss/train', np.random.random(), n_iter)
+        writer.add_scalar('Loss/test', np.random.random(), n_iter)
+        writer.add_scalar('Accuracy/train', np.random.random(), n_iter)
+        writer.add_scalar('Accuracy/test', np.random.random(), n_iter)
     writer.close()

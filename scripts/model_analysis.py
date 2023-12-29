@@ -19,14 +19,18 @@ plot = args.plot
 model = load_model(file_name)
 _, test_dataloader =  MNIST_give_dataloader()
 
-plot_MNNIST_img(model, test_dataloader)
 
 disp = True
 while disp:
     if plot=='latent':
         disp_MNIST_latent(model)
-    else:
+    elif plot=='example':
         disp_MNIST_example(model, test_dataloader)
+    elif plot=='tensorboard':
+        disp_MNIST_img(model, test_dataloader)
+    else:
+        disp_test()
+        
     disp = False
     ans = input('Continue (y/n) ? ')
     if ans=='y':
