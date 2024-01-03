@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import os
+import torch
 from torchvision import datasets
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
-from torchaudio.transforms import Spectrogram
-
-from src.dataset import NsynthDataset
+import torch.nn as nn
+from src.dataset import *
+from src.utils import *
 
 
 def MNIST_give_dataset(root='.'):
@@ -34,17 +35,22 @@ def MNIST_give_dataloader(root='.', batch_size=64):
     
     return train_dataloader, test_dataloader
 
-def NSYNTH_give_dataset(root='.'):
-    training_data = NsynthDataset(  
-            json_file = os.path.join(root,"data","nsynth-test","examples.json"),
-            sound_dir = os.path.join(root,"data","nsynth-test","audio") ,
-            transform = Spectrogram(n_fft=2054,hop_length=472) )
+def NSYNTH_give_dataset(root=".",device=torch.device("cpu"),transform = nn.Identity()):
+    training_data = NSynth(  
+                top_path = root , 
+                device = device,
+                n_signal = 32000,
+                valid_pitch = None, 
+                valid_inst = None, 
+                valid_source= None,
+                transform = transform,
+    )
     test_data = training_data #A CHANGER
     
     return training_data, test_data
 
-def NSYNTH_give_dataloader(root='.',batch_size = 64):
-    training_data, test_data = NSYNTH_give_dataset(root)
+def NSYNTH_give_dataloader(root='.',batch_size = 64,device=torch.device("cpu"),transform= nn.Identity()):
+    training_data, test_data = NSYNTH_give_dataset(root,device=device,transform=transform)
     train_dataloader = DataLoader(training_data, batch_size, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size, shuffle=True)
     

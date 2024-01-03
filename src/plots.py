@@ -4,7 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
-from librosa import griffinlim
+from torchaudio import transforms as T
 from soundfile import write
 
 def disp_loss(loss):
@@ -25,31 +25,31 @@ def disp_MNIST_example(model, dataloader):
             ax[1,i].imshow(xbar[i].reshape(28,28), cmap="gray")
     plt.show()
 
-def tensorboard_writer(model, dataloader,writer,device):
+def tensorboard_writer(model, dataloader,writer,inverse_transform,device):
     print("Creating logs")
     model.eval()
     with torch.no_grad():
-        images, labels = next(iter(dataloader))
-        images = images.to(device)
-        output = model(images)
-        grid = torchvision.utils.make_grid(images)
-        writer.add_image('images', grid, 0)
-        writer.add_graph(model, images)
-
-        writer.add_image('Initial Spectrogram',images[0])
-        writer.add_image('Generated Spectrogram',output[0])
-
-        init_audio = griffinlim(images[0].cpu().numpy(),n_fft=2054,hop_length=472)
-        init_audio = torch.Tensor(init_audio)
-        writer.add_audio("Initial audio",init_audio,sample_rate = 16000)
-
+        item = next(iter(dataloader))
+        spec = item['x']
+        batch_size = spec.shape[0]
+        init_audio = item['audio']
+        images = spec[:,None,:,:]
         
-        gen_audio = griffinlim(output[0].cpu().numpy(),n_fft=2054,hop_length=472)
-        gen_audio = torch.Tensor(gen_audio)
-        writer.add_audio("Generated audio",gen_audio,sample_rate = 16000)
+        output = model(spec)
+        output_image = output[:,None,:,:]
+        gen_audio = inverse_transform(output)
 
+        for batch_number in range(batch_size):
+            writer.add_image(f'{batch_number}/Initial Spectrogram',images[batch_number])
+            writer.add_image(f'{batch_number}/Generated Spectrogram',output_image[batch_number])
 
-        for i in range(len(gen_audio[0])): 
-            writer.add_scalar("Generated Waveform",gen_audio[0][i],i)
-            writer.add_scalar("Initial Waveform",init_audio[0][i],i)
+            writer.add_audio(f"{batch_number}/Initial audio",init_audio[batch_number],sample_rate = 16000)
+
+    
+            writer.add_audio(f"{batch_number}/Generated audio",gen_audio[batch_number],sample_rate = 16000)
+
+            for i in range(len(gen_audio[batch_number])): 
+                writer.add_scalar(f"{batch_number}/Generated Waveform",gen_audio[batch_number][i],i)
+                writer.add_scalar(f"{batch_number}/Initial Waveform",init_audio[batch_number][i],i)
+
         writer.close()
