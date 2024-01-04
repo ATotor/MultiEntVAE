@@ -14,11 +14,13 @@ import matplotlib.pyplot as plt
 from src.VAE import *
 from src.dataset_loader import *
 from src.plots import *
+from src.utils import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 parser = ArgumentParser()
 parser.add_argument('--epochs', type=int, default=5)
+parser.add_argument('--beta', type=float, default=1)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--no-disp', action="store_false")
@@ -32,17 +34,25 @@ batch_size = args.batch_size
 disp = args.no_disp
 save = args.no_save
 load = args.load
-#train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size)
+beta = args.beta
 
-transform = T.MelSpectrogram(sample_rate=16000,n_mels=256,n_fft=2048,norm='slaney').to(device=device)
+transform = nn.Sequential(
+    T.MelSpectrogram(sample_rate=16000,n_mels=256,n_fft=2048,norm='slaney'),
+    Norm()
+
+).to(device)
 inverse_transform = nn.Sequential(
     T.InverseMelScale(sample_rate=16000,n_mels=256,n_stft=2048 // 2 + 1,norm="slaney"),
-    T.GriffinLim(n_fft=2048)
-).to(device=device)
+    #T.GriffinLim(n_fft=2048),
+    librosa_GriffinLim(n_fft=2048),
+    Norm(),
+).to(device)
+
 
 train_dataloader, test_dataloader = NSYNTH_give_dataloader(root="data\\nsynth-test",batch_size=batch_size,device=device,transform=transform)
+#train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size)
 
-model = VAE(in_channels=256).to(device)
+model = VAE(in_channels=256,latent_dims=256).to(device)
 n_params = sum(p.numel() for p in model.parameters())
 print(f"Number of parameters : {n_params:}")
 log_dir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -50,7 +60,7 @@ writer = SummaryWriter(log_dir) if disp else None
 
 if load is False :
     print("Training model")
-    model, loss = train_VAE(model, train_dataloader, epochs, lr,device,writer)    
+    model, loss = train_VAE(model, train_dataloader, beta, epochs, lr,device,writer)    
 else:
     print("Loading model")
     model = load_model(find_most_recent_VAE())

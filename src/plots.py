@@ -32,7 +32,7 @@ def tensorboard_writer(model, dataloader,writer,inverse_transform,device):
         item = next(iter(dataloader))
         spec = item['x']
         batch_size = spec.shape[0]
-        init_audio = item['audio']
+        init_audio = inverse_transform(spec)
         images = spec[:,None,:,:]
         
         output = model(spec)
@@ -40,16 +40,14 @@ def tensorboard_writer(model, dataloader,writer,inverse_transform,device):
         gen_audio = inverse_transform(output)
 
         for batch_number in range(batch_size):
-            writer.add_image(f'{batch_number}/Initial Spectrogram',images[batch_number])
-            writer.add_image(f'{batch_number}/Generated Spectrogram',output_image[batch_number])
+            writer.add_image(f'{batch_number}/Initial Spectrogram {item["fname"][batch_number]}',images[batch_number])
+            writer.add_image(f'{batch_number}/Generated Spectrogram {item["fname"][batch_number]}',output_image[batch_number])
+            writer.add_audio(f'{batch_number}/Initial audio {item["fname"][batch_number]}',item["audio"][batch_number],sample_rate = 16000)
+            writer.add_audio(f'{batch_number}/Initial recreated audio {item["fname"][batch_number]}',init_audio[batch_number],sample_rate = 16000)
+            writer.add_audio(f'{batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio[batch_number],sample_rate = 16000)
 
-            writer.add_audio(f"{batch_number}/Initial audio",init_audio[batch_number],sample_rate = 16000)
-
-    
-            writer.add_audio(f"{batch_number}/Generated audio",gen_audio[batch_number],sample_rate = 16000)
-
-            for i in range(len(gen_audio[batch_number])): 
-                writer.add_scalar(f"{batch_number}/Generated Waveform",gen_audio[batch_number][i],i)
-                writer.add_scalar(f"{batch_number}/Initial Waveform",init_audio[batch_number][i],i)
+            # for i in range(len(gen_audio[batch_number])): 
+            #     writer.add_scalar(f"{batch_number}/Generated Waveform",gen_audio[batch_number][i],i)
+            #     writer.add_scalar(f"{batch_number}/Initial Waveform",init_audio[batch_number][i],i)
 
         writer.close()
