@@ -18,9 +18,13 @@ from torch.utils.data import DataLoader
 from torchaudio.transforms import Spectrogram,GriffinLim
 from argument_parser_N_synth import parse_arguments
 from torch.utils.tensorboard import SummaryWriter
-from model_dataset import NsynthDataset,Encodeur,Decodeur,Auto_encodeur,VariationalEncoder
+from model_dataset import NsynthDataset,Encodeur,Decodeur,Auto_encodeur, ConvVAE
 import torchaudio
 
+def final_loss(mse_loss, mu, logvar):
+    MSE = mse_loss 
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    return MSE + KLD
     
 def train_model(config):
     num_epochs=config["num_epochs"]
@@ -54,9 +58,11 @@ def train_model(config):
           print("CUDA is available! Training on GPU...")
     else:
           print("CUDA is not available. Training on CPU...")
-    enco=VariationalEncoder()
-    deco=Decodeur()
-    auto_enco=Auto_encodeur(deco, enco).to(device)
+    #enco=VariationalEncoder()
+    #deco=Decodeur()
+    #auto_enco=Auto_encodeur(deco, enco).to(device)
+    auto_enco=ConvVAE().to(device)
+    auto_enco.eval()
     criterion=nn.MSELoss()
     optimizer=torch.optim.Adam(auto_enco.parameters(),lr=lr)
     dataiter = iter(train_dataloader)
@@ -75,11 +81,12 @@ def train_model(config):
         for n, (X_sample, _) in enumerate(train_dataloader):
            auto_enco.zero_grad()
            X_sample=X_sample.to(device)
-           X_recons,_=auto_enco.forward(X_sample)
+           X_recons,mu,logvar=auto_enco.forward(X_sample)
            X_recons=X_recons.to(device)
-           loss=criterion(X_sample,X_recons)+auto_enco.encoder.kl
-           running_loss+=loss.item()
+           mse_loss=criterion(X_sample,X_recons)
+           loss=final_loss(mse_loss, mu, logvar)
            loss.backward()
+           running_loss+=loss.item()
            optimizer.step()
            if n == batch_size - 1:
               avg_loss = running_loss /batch_size  # loss per batch
@@ -90,8 +97,9 @@ def train_model(config):
         with torch.no_grad():
             for i, (X_sample_test,_) in enumerate(test_dataloader):
                X_sample_test=X_sample_test.to(device)
-               X_recons_test,_=auto_enco.forward(X_sample_test)
-               vloss = criterion(X_recons_test, X_sample_test)
+               X_recons_test,mu_val,logvar_val=auto_enco.forward(X_sample_test)
+               mse_vloss = criterion(X_recons_test, X_sample_test)
+               vloss=final_loss(mse_vloss,mu_val,logvar_val)
                running_vloss += vloss
             avg_vloss = running_vloss / (i + 1)
         print('avg_loss train: {} avg_loss valid: {}'.format(avg_loss, avg_vloss))

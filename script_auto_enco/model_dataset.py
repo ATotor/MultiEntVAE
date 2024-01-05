@@ -9,6 +9,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 import torchaudio
 from torchaudio.transforms import Spectrogram,GriffinLim
+import torch.nn.functional as F
 import pandas as pd
 
 class NsynthDataset(Dataset):
@@ -87,6 +88,7 @@ class Auto_encodeur(nn.Module):
         
         return output,mid_rep
     
+
 class ConvVAE(nn.Module):
     def __init__(self):
         super(ConvVAE, self).__init__()
@@ -97,7 +99,7 @@ class ConvVAE(nn.Module):
         self.enc3=nn.Sequential(nn.Conv2d(4,8,kernel_size=5,stride=2,padding=2),nn.ReLU())#32
         self.enc4=nn.Sequential(nn.Conv2d(8,16,kernel_size=5,stride=2,padding=2),nn.ReLU())#16
         self.enc5=nn.Sequential(nn.Conv2d(16,32,kernel_size=5,stride=2,padding=2),nn.ReLU())#8
-        self.enc6=nn.Sequential(nn.Conv2d(32,64,kernel_size=4,stride=2,padding=0),nn.ReLU())#4
+        self.enc6=nn.Sequential(nn.Conv2d(32,64,kernel_size=8,stride=1,padding=0),nn.ReLU())#4
         
         # fully connected layers for learning representations
         self.fc1 = nn.Linear(64, 128)
@@ -108,17 +110,17 @@ class ConvVAE(nn.Module):
         self.dec1 = nn.Sequential(nn.Upsample(scale_factor=4),
         nn.Conv2d(64,32,kernel_size=5,padding="same"),nn.BatchNorm2d(32),nn.ReLU())
         
-        self.dec2 =  nn.Sequential(nn.Upsample(scale_factor=2),
+        self.dec2 =  nn.Sequential(nn.Upsample(scale_factor=4),
         nn.Conv2d(32,16,kernel_size=5,padding="same"),nn.BatchNorm2d(16),nn.ReLU())
         
         self.dec3 =  nn.Sequential(nn.Upsample(scale_factor=2),
-        nn.Conv2d(16,8,kernel_size=5,padding="same"),nn.ReLU())
+        nn.Conv2d(16,8,kernel_size=5,padding="same"),nn.BatchNorm2d(8),nn.ReLU())
         
         self.dec4 = nn.Sequential(nn.Upsample(scale_factor=2),
-        nn.Conv2d(8,4,kernel_size=5,padding="same"),nn.BatchNorm2d(32),nn.ReLU())
+        nn.Conv2d(8,4,kernel_size=5,padding="same"),nn.BatchNorm2d(4),nn.ReLU())
         
         self.dec5 =  nn.Sequential(nn.Upsample(scale_factor=2),
-        nn.Conv2d(4,2,kernel_size=5,padding="same"),nn.BatchNorm2d(16),nn.ReLU())
+        nn.Conv2d(4,2,kernel_size=5,padding="same"),nn.BatchNorm2d(2),nn.ReLU())
         
         self.dec6 =  nn.Sequential(nn.Upsample(scale_factor=2),
         nn.Conv2d(2,1,kernel_size=5,padding="same"),nn.ReLU())
@@ -144,6 +146,7 @@ class ConvVAE(nn.Module):
         x = self.enc6(x)
         
         batch, _, _, _ = x.shape
+        x=F.avg_pool2d(x,1).reshape(batch, -1)
         hidden = self.fc1(x)
         # get `mu` and `log_var`
         mu = self.fc_mu(hidden)
