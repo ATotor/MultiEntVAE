@@ -13,22 +13,25 @@ from src.utils import *
 
 
 class AE(nn.Module):
-    def __init__(self, in_channels=256):
+    def __init__(self, in_channels=256,hidden_dim=512):
         super(AE, self).__init__()
         self.dummy_param = nn.Parameter(torch.empty(0)) #To find the device
+        self.hidden_dim = hidden_dim
         self.encoder = nn.Sequential(
-            LayerEncoder(in_channels, in_channels//2, kernel_size_conv=3,stride_conv=2,padding_conv=1),
-            LayerEncoder(in_channels//2, in_channels//4, kernel_size_conv=3,stride_conv=2,padding_conv=1),
-            LayerEncoder(in_channels//4, in_channels//8, kernel_size_conv=3,stride_conv=2,padding_conv=1),
+            LayerEncoder(in_channels, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1),
+            LayerEncoder(hidden_dim, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1),
+            LayerEncoder(hidden_dim, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1),
             nn.Dropout1d(p=0.2)
         )
         
         self.decoder = nn.Sequential(
-            LayerDecoder(in_channels//8, in_channels//4, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
-            LayerDecoder(in_channels//4, in_channels//2, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
-            LayerDecoder(in_channels//2, in_channels, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
+            LayerDecoder(hidden_dim, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
+            LayerDecoder(hidden_dim, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
+            LayerDecoder(hidden_dim, in_channels, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
             #nn.Dropout1d(p=0.2)
             #Normalize()
+            nn.Conv1d(in_channels,in_channels,kernel_size=3,padding='same'),
+            #nn.ReLU()
             )
 
     def forward(self, x):
@@ -76,8 +79,9 @@ class LayerDecoder(nn.Module):
 
 class VAE(AE):
     
-    def __init__(self, in_channels=256, encoding_dims=32*5,latent_dims=50,beta = 1):
-        super(VAE, self).__init__(in_channels=in_channels)
+    def __init__(self, in_channels=256, latent_dims=50,hidden_dim=512,beta = 1):
+        super(VAE, self).__init__(in_channels=in_channels,hidden_dim=hidden_dim)
+        encoding_dims = hidden_dim * 5
         self.beta = beta
         self.latent_dims = latent_dims
         self.mu = nn.Sequential(nn.Linear(encoding_dims,latent_dims),
@@ -101,7 +105,7 @@ class VAE(AE):
         #     )
 
     def encode(self, x):
-        x_hidden = self.encoder(x).view(-1,32*5)
+        x_hidden = self.encoder(x).view(-1,self.hidden_dim*5)
         mu = self.mu(x_hidden)
         sigma = self.sigma(x_hidden)
         
@@ -109,7 +113,7 @@ class VAE(AE):
     
     def decode(self, z):
         z = self.decode_layer(z)
-        z = z.view(-1,32,5)
+        z = z.view(-1,self.hidden_dim,5)
         return self.decoder(z)
 
     def forward(self, x):
@@ -144,8 +148,10 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
         full_loss = torch.Tensor([0]).to(device)
         for _, item in enumerate(dataloader):
             x = item['x']
+            batch_size = x.shape[0]
             x = spec_normalizer(x)
             loss = model.compute_loss(x)
+            loss /= batch_size
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

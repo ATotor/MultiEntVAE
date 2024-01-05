@@ -43,7 +43,6 @@ beta = args.beta
 transform = nn.Sequential(
     T.MelSpectrogram(sample_rate=16000,n_mels=256,n_fft=2048,norm='slaney'),
     #Normalize()
-
 ).to(device)
 inverse_transform = nn.Sequential(
     T.InverseMelScale(sample_rate=16000,n_mels=256,n_stft=2048 // 2 + 1,norm="slaney"),
@@ -55,7 +54,7 @@ inverse_transform = nn.Sequential(
 
 train_dataloader, test_dataloader, train_spec_normalizer, train_spec_denormalizer, test_spec_normalizer, test_spec_denormalizer = NSYNTH_give_dataloader(root="data\\nsynth-test",batch_size=batch_size,device=device,transform=transform)
 
-model = VAE(in_channels=256,latent_dims=256, beta = beta).to(device)
+model = VAE(in_channels=256,hidden_dim = 128, latent_dims=256, beta = beta).to(device)
 n_params = sum(p.numel() for p in model.parameters())
 print(f"Number of parameters : {n_params:}")
 log_dir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -63,7 +62,8 @@ writer = SummaryWriter(log_dir) if disp else None
 
 if not load and load_recent is False:
     print("Training model")
-    model, loss = train_VAE(model, train_dataloader, epochs, lr,device,writer, train_spec_normalizer)    
+    model, loss = train_VAE(model, train_dataloader, epochs, lr,device,writer, Normalize())    
+
 elif load_recent:
     print("Loading most recent model")
     model = load_model(find_most_recent_VAE())
@@ -82,4 +82,4 @@ if save:
 if disp:
     #if loss :     disp_loss(loss)
     #disp_MNIST_example(model, test_dataloader)
-    tensorboard_writer(model,test_dataloader,writer,nn.Sequential(func2module(test_spec_denormalizer),inverse_transform),test_spec_normalizer,args)
+    tensorboard_writer(model,test_dataloader,writer,nn.Sequential(nn.Identity(),inverse_transform),Normalize(),args)
