@@ -27,7 +27,7 @@ class AE(nn.Module):
             LayerDecoder(in_channels//8, in_channels//4, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
             LayerDecoder(in_channels//4, in_channels//2, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
             LayerDecoder(in_channels//2, in_channels, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
-            nn.Dropout1d(p=0.2)
+            #nn.Dropout1d(p=0.2)
             )
 
     def forward(self, x):
@@ -114,29 +114,35 @@ class VAE(AE):
         # Encode the inputs
         mu, sigma = self.encode(x)
         # Obtain latent samples
-        z = self.latent(mu, sigma)
+        z, kl_div = self.latent(mu, sigma)
         # Decode the samples
         x_tilde = self.decode(z)
-        return x_tilde
+        return x_tilde, kl_div
     
     def latent(self, mu, sigma):
         device = self.dummy_param.device
         z = mu + sigma*torch.randn_like(sigma,device=device)
-        return z
+        kl_div = 0.5*(1 + torch.log(sigma**2) - mu**2 - sigma**2).sum()
+        return z, kl_div
 
+def compute_loss(model, x, beta):
+    recons_criterion = torch.nn.MSELoss(reduction='sum')
+    x_tilde, kl = model(x)
+    full_loss = recons_criterion(x_tilde,x) - beta * kl
+    
+    return full_loss
 
 def train_VAE(model, dataloader, beta = 1, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None):
     optimizer = torch.optim.Adam(model.parameters(), lr)
-    criterion_1 = torch.nn.MSELoss(reduction='sum')
-    criterion_2 = torch.nn.KLDivLoss(reduction='sum')
+    # criterion_1 = torch.nn.MSELoss(reduction='sum')
+    # criterion_2 = torch.nn.KLDivLoss(reduction='sum')
     loss_tensor = torch.tensor([]).to(device)
     
     for epoch in range(1, epochs + 1):
         full_loss = torch.Tensor([0]).to(device)
-        for i, item in enumerate(dataloader):
+        for _, item in enumerate(dataloader):
             x = item['x']
-            x_tilde = model(x)
-            loss = criterion_1(x_tilde, x) + beta * criterion_2(x_tilde, x)
+            loss = compute_loss(model,x,beta)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

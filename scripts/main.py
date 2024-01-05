@@ -25,7 +25,9 @@ parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--no-disp', action="store_false")
 parser.add_argument('--no-save', action="store_false")
-parser.add_argument('--load', action="store_true", help="Load model instead of training")
+parser.add_argument('--load-recent', action="store_true", help="Load most recent model instead of training")
+parser.add_argument('--load', type=str, default="", help="Load specified model instead of training")
+
 args = parser.parse_args()
 
 epochs = args.epochs
@@ -33,19 +35,20 @@ lr = args.lr
 batch_size = args.batch_size
 disp = args.no_disp
 save = args.no_save
+load_recent = args.load_recent
 load = args.load
 beta = args.beta
 
 transform = nn.Sequential(
     T.MelSpectrogram(sample_rate=16000,n_mels=256,n_fft=2048,norm='slaney'),
-    Norm()
+    Normalize()
 
 ).to(device)
 inverse_transform = nn.Sequential(
     T.InverseMelScale(sample_rate=16000,n_mels=256,n_stft=2048 // 2 + 1,norm="slaney"),
     #T.GriffinLim(n_fft=2048),
     librosa_GriffinLim(n_fft=2048),
-    Norm(),
+    Normalize(),
 ).to(device)
 
 
@@ -58,15 +61,20 @@ print(f"Number of parameters : {n_params:}")
 log_dir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 writer = SummaryWriter(log_dir) if disp else None
 
-if load is False :
+if not load and load_recent is False:
     print("Training model")
     model, loss = train_VAE(model, train_dataloader, beta, epochs, lr,device,writer)    
-else:
+elif load_recent:
     print("Loading model")
     model = load_model(find_most_recent_VAE())
     model = model.to(device)
     loss = None
-        
+elif load:
+    print("Loading model")
+    model = load_model(load)
+    model = model.to(device)
+    loss = None    
+
 if save:
     save_model(model)
     #if loss:    save_loss(loss)
@@ -74,4 +82,4 @@ if save:
 if disp:
     #if loss :     disp_loss(loss)
     #disp_MNIST_example(model, test_dataloader)
-    tensorboard_writer(model,test_dataloader,writer,inverse_transform,device)
+    tensorboard_writer(model,test_dataloader,writer,inverse_transform,args)

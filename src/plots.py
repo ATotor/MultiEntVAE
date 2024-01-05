@@ -25,26 +25,29 @@ def disp_MNIST_example(model, dataloader):
             ax[1,i].imshow(xbar[i].reshape(28,28), cmap="gray")
     plt.show()
 
-def tensorboard_writer(model, dataloader,writer,inverse_transform,device):
+def tensorboard_writer(model, dataloader,writer,inverse_transform,args):
     print("Creating logs")
+    writer.add_text(f"beta",str(args.beta))
+    writer.add_text(f"learning rate",str(args.lr))
     model.eval()
     with torch.no_grad():
         item = next(iter(dataloader))
         spec = item['x']
         batch_size = spec.shape[0]
-        init_audio = inverse_transform(spec)
+        
         images = spec[:,None,:,:]
         
-        output = model(spec)
+        output, _ = model(spec)
         output_image = output[:,None,:,:]
-        gen_audio = inverse_transform(output)
-
+        
         for batch_number in range(batch_size):
+            init_audio = inverse_transform(spec[batch_number])
+            gen_audio = inverse_transform(output[batch_number])
             writer.add_image(f'{batch_number}/Initial Spectrogram {item["fname"][batch_number]}',images[batch_number])
             writer.add_image(f'{batch_number}/Generated Spectrogram {item["fname"][batch_number]}',output_image[batch_number])
             writer.add_audio(f'{batch_number}/Initial audio {item["fname"][batch_number]}',item["audio"][batch_number],sample_rate = 16000)
-            writer.add_audio(f'{batch_number}/Initial recreated audio {item["fname"][batch_number]}',init_audio[batch_number],sample_rate = 16000)
-            writer.add_audio(f'{batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio[batch_number],sample_rate = 16000)
+            writer.add_audio(f'{batch_number}/Initial recreated audio {item["fname"][batch_number]}',init_audio,sample_rate = 16000)
+            writer.add_audio(f'{batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio,sample_rate = 16000)
 
             # for i in range(len(gen_audio[batch_number])): 
             #     writer.add_scalar(f"{batch_number}/Generated Waveform",gen_audio[batch_number][i],i)

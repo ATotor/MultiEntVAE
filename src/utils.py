@@ -43,11 +43,13 @@ def save_loss(loss):
     date_time = datetime.now().strftime("%d-%m-%Y_%H_%M")
     np.save(os.path.join("results","loss_"+date_time), loss)
 
-class Norm(nn.Module):
+class Normalize(nn.Module):
     def __init__(self):
-        super(Norm, self).__init__()
+        super(Normalize, self).__init__()
     def forward(self, x):
-        return x/x.max()
+        minval = x.min()
+        maxval = x.max()
+        return (x - minval) / (maxval - minval)
     
 class librosa_GriffinLim(nn.Module):
     def __init__(self,n_fft=2048):
