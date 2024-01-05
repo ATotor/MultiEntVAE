@@ -55,7 +55,7 @@ inverse_transform = nn.Sequential(
 train_dataloader, test_dataloader = NSYNTH_give_dataloader(root="data\\nsynth-test",batch_size=batch_size,device=device,transform=transform)
 #train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size)
 
-model = VAE(in_channels=256,latent_dims=256).to(device)
+model = VAE(in_channels=256,latent_dims=256, beta = beta).to(device)
 n_params = sum(p.numel() for p in model.parameters())
 print(f"Number of parameters : {n_params:}")
 log_dir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -63,14 +63,14 @@ writer = SummaryWriter(log_dir) if disp else None
 
 if not load and load_recent is False:
     print("Training model")
-    model, loss = train_VAE(model, train_dataloader, beta, epochs, lr,device,writer)    
+    model, loss = train_VAE(model, train_dataloader, epochs, lr,device,writer)    
 elif load_recent:
-    print("Loading model")
+    print("Loading most recent model")
     model = load_model(find_most_recent_VAE())
     model = model.to(device)
     loss = None
 elif load:
-    print("Loading model")
+    print("Loading model" +load)
     model = load_model(load)
     model = model.to(device)
     loss = None    

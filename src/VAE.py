@@ -28,6 +28,7 @@ class AE(nn.Module):
             LayerDecoder(in_channels//4, in_channels//2, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
             LayerDecoder(in_channels//2, in_channels, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
             #nn.Dropout1d(p=0.2)
+            Normalize()
             )
 
     def forward(self, x):
@@ -75,8 +76,9 @@ class LayerDecoder(nn.Module):
 
 class VAE(AE):
     
-    def __init__(self, in_channels=256, encoding_dims=32*5,latent_dims=50):
+    def __init__(self, in_channels=256, encoding_dims=32*5,latent_dims=50,beta = 1):
         super(VAE, self).__init__(in_channels=in_channels)
+        self.beta = beta
         self.latent_dims = latent_dims
         self.mu = nn.Sequential(nn.Linear(encoding_dims,latent_dims),
                                 nn.Sigmoid())
@@ -125,14 +127,14 @@ class VAE(AE):
         kl_div = 0.5*(1 + torch.log(sigma**2) - mu**2 - sigma**2).sum()
         return z, kl_div
 
-def compute_loss(model, x, beta):
-    recons_criterion = torch.nn.MSELoss(reduction='sum')
-    x_tilde, kl = model(x)
-    full_loss = recons_criterion(x_tilde,x) - beta * kl
-    
-    return full_loss
+    def compute_loss(self, x):
+        recons_criterion = torch.nn.MSELoss(reduction='sum')
+        x_tilde, kl = self.forward(x)
+        full_loss = recons_criterion(x_tilde,x) - self.beta * kl
+        
+        return full_loss
 
-def train_VAE(model, dataloader, beta = 1, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None):
+def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None):
     optimizer = torch.optim.Adam(model.parameters(), lr)
     # criterion_1 = torch.nn.MSELoss(reduction='sum')
     # criterion_2 = torch.nn.KLDivLoss(reduction='sum')
@@ -142,7 +144,7 @@ def train_VAE(model, dataloader, beta = 1, epochs=5, lr=1e-3, device = torch.dev
         full_loss = torch.Tensor([0]).to(device)
         for _, item in enumerate(dataloader):
             x = item['x']
-            loss = compute_loss(model,x,beta)
+            loss = model.compute_loss(x)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

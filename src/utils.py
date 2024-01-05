@@ -47,9 +47,14 @@ class Normalize(nn.Module):
     def __init__(self):
         super(Normalize, self).__init__()
     def forward(self, x):
-        minval = x.min()
-        maxval = x.max()
-        return (x - minval) / (maxval - minval)
+        if len(x.shape) == 3:
+            maxval = x.amax(dim=(1,2)).reshape((-1,1,1))
+            minval = x.amin(dim=(1,2)).reshape((-1,1,1))
+        else:
+            minval = x.min()
+            maxval = x.max()
+        normalized = (x - minval) / (maxval - minval)
+        return normalized
     
 class librosa_GriffinLim(nn.Module):
     def __init__(self,n_fft=2048):
