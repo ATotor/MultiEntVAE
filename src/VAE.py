@@ -28,7 +28,7 @@ class AE(nn.Module):
             LayerDecoder(in_channels//4, in_channels//2, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
             LayerDecoder(in_channels//2, in_channels, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
             #nn.Dropout1d(p=0.2)
-            Normalize()
+            #Normalize()
             )
 
     def forward(self, x):
@@ -134,7 +134,7 @@ class VAE(AE):
         
         return full_loss
 
-def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None):
+def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None, spec_normalizer=lambda x:x):
     optimizer = torch.optim.Adam(model.parameters(), lr)
     # criterion_1 = torch.nn.MSELoss(reduction='sum')
     # criterion_2 = torch.nn.KLDivLoss(reduction='sum')
@@ -144,6 +144,7 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
         full_loss = torch.Tensor([0]).to(device)
         for _, item in enumerate(dataloader):
             x = item['x']
+            x = spec_normalizer(x)
             loss = model.compute_loss(x)
             optimizer.zero_grad()
             loss.backward()

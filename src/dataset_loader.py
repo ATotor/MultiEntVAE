@@ -8,6 +8,7 @@ from torchvision.transforms import ToTensor
 import torch.nn as nn
 from src.dataset import *
 from src.utils import *
+from src.preprocessing import *
 
 
 def MNIST_give_dataset(root='.'):
@@ -53,5 +54,8 @@ def NSYNTH_give_dataloader(root='.',batch_size = 64,device=torch.device("cpu"),t
     training_data, test_data = NSYNTH_give_dataset(root,device=device,transform=transform)
     train_dataloader = DataLoader(training_data, batch_size, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size, shuffle=True)
-    
-    return train_dataloader, test_dataloader
+
+    train_spec_normalizer, train_spec_denormalizer = find_spec_normalizer(train_dataloader)
+    test_spec_normalizer, test_spec_denormalizer = find_spec_normalizer(train_dataloader)
+
+    return train_dataloader, test_dataloader, train_spec_normalizer, train_spec_denormalizer, test_spec_normalizer, test_spec_denormalizer

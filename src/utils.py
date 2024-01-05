@@ -1,9 +1,9 @@
 import numpy as np
-import torch.nn as nn
 import os
 import torch
+import torch.nn as nn
 from datetime import datetime
-import librosa as li
+
 
 def next_power_of_2(n):
     # Check if n is already a power of 2
@@ -56,9 +56,10 @@ class Normalize(nn.Module):
         normalized = (x - minval) / (maxval - minval)
         return normalized
     
-class librosa_GriffinLim(nn.Module):
-    def __init__(self,n_fft=2048):
-        super(librosa_GriffinLim, self).__init__()
-        self.n_fft = n_fft
-    def forward(self, x):
-        return li.griffinlim(x.cpu().numpy(),n_fft=self.n_fft)
+class func2module(nn.Module):
+    def __init__(self,f):
+        super(func2module,self).__init__()
+        self.f = f
+    def forward(self,x):
+        return self.f(x)
+    

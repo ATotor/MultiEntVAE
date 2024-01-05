@@ -25,7 +25,7 @@ def disp_MNIST_example(model, dataloader):
             ax[1,i].imshow(xbar[i].reshape(28,28), cmap="gray")
     plt.show()
 
-def tensorboard_writer(model, dataloader,writer,inverse_transform,args):
+def tensorboard_writer(model, dataloader,writer,inverse_transform,train_spec_normalizer,args):
     print("Creating logs")
     writer.add_text(f"beta",str(args.beta))
     writer.add_text(f"learning rate",str(args.lr))
@@ -33,12 +33,15 @@ def tensorboard_writer(model, dataloader,writer,inverse_transform,args):
     with torch.no_grad():
         item = next(iter(dataloader))
         spec = item['x']
+        spec = train_spec_normalizer(spec)
         batch_size = spec.shape[0]
-        
+
         images = spec[:,None,:,:]
-        
         output, _ = model(spec)
         output_image = output[:,None,:,:]
+        
+        torch.save(spec,'original_spec_tensor')
+        torch.save(output,'generated_spec_tensor')
         
         for batch_number in range(batch_size):
             init_audio = inverse_transform(spec[batch_number])

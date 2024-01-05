@@ -15,6 +15,7 @@ from src.VAE import *
 from src.dataset_loader import *
 from src.plots import *
 from src.utils import *
+from src.preprocessing import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -41,19 +42,18 @@ beta = args.beta
 
 transform = nn.Sequential(
     T.MelSpectrogram(sample_rate=16000,n_mels=256,n_fft=2048,norm='slaney'),
-    Normalize()
+    #Normalize()
 
 ).to(device)
 inverse_transform = nn.Sequential(
     T.InverseMelScale(sample_rate=16000,n_mels=256,n_stft=2048 // 2 + 1,norm="slaney"),
     #T.GriffinLim(n_fft=2048),
     librosa_GriffinLim(n_fft=2048),
-    Normalize(),
+    #Normalize(),
 ).to(device)
 
 
-train_dataloader, test_dataloader = NSYNTH_give_dataloader(root="data\\nsynth-test",batch_size=batch_size,device=device,transform=transform)
-#train_dataloader, test_dataloader =  MNIST_give_dataloader(batch_size=batch_size)
+train_dataloader, test_dataloader, train_spec_normalizer, train_spec_denormalizer, test_spec_normalizer, test_spec_denormalizer = NSYNTH_give_dataloader(root="data\\nsynth-test",batch_size=batch_size,device=device,transform=transform)
 
 model = VAE(in_channels=256,latent_dims=256, beta = beta).to(device)
 n_params = sum(p.numel() for p in model.parameters())
@@ -63,7 +63,7 @@ writer = SummaryWriter(log_dir) if disp else None
 
 if not load and load_recent is False:
     print("Training model")
-    model, loss = train_VAE(model, train_dataloader, epochs, lr,device,writer)    
+    model, loss = train_VAE(model, train_dataloader, epochs, lr,device,writer, train_spec_normalizer)    
 elif load_recent:
     print("Loading most recent model")
     model = load_model(find_most_recent_VAE())
@@ -82,4 +82,4 @@ if save:
 if disp:
     #if loss :     disp_loss(loss)
     #disp_MNIST_example(model, test_dataloader)
-    tensorboard_writer(model,test_dataloader,writer,inverse_transform,args)
+    tensorboard_writer(model,test_dataloader,writer,nn.Sequential(func2module(test_spec_denormalizer),inverse_transform),test_spec_normalizer,args)
