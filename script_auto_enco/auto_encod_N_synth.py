@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from torchaudio.transforms import Spectrogram,GriffinLim
 from argument_parser_N_synth import parse_arguments
 from torch.utils.tensorboard import SummaryWriter
-from model_dataset import NsynthDataset,Encodeur,Decodeur,Auto_encodeur
+from model_dataset import NsynthDataset,Encodeur,Decodeur,Auto_encodeur,VariationalEncoder
 import torchaudio
 
     
@@ -54,9 +54,9 @@ def train_model(config):
           print("CUDA is available! Training on GPU...")
     else:
           print("CUDA is not available. Training on CPU...")
-    enco=Encodeur(128).to(device)
-    deco=Decodeur(128).to(device)
-    auto_enco=Auto_encodeur(deco, enco,128).to(device)
+    enco=VariationalEncoder()
+    deco=Decodeur()
+    auto_enco=Auto_encodeur(deco, enco).to(device)
     criterion=nn.MSELoss()
     optimizer=torch.optim.Adam(auto_enco.parameters(),lr=lr)
     dataiter = iter(train_dataloader)
