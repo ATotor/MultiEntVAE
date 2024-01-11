@@ -146,7 +146,7 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
     
     for epoch in range(1, epochs + 1):
         full_loss = torch.Tensor([0]).to(device)
-        for i, item in tqdm(enumerate(dataloader),total=len(dataloader),desc=epoch):
+        for i, item in tqdm(enumerate(dataloader),total=len(dataloader),desc=str(epoch)):
             x = item['x']
             batch_size = x.shape[0]
             x = spec_normalizer(x)
