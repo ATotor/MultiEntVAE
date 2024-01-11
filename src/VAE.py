@@ -158,9 +158,11 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
                 loss.backward()
                 optimizer.step()
                 full_loss += loss
+            if i%1000==0:
+                print("Epoch",epoch,"batch",i,"/",len(dataloader), full_loss[0])
         #loss_tensor = torch.cat([loss_tensor, full_loss])
         if writer is not None: 
             writer.add_scalar("Loss/train", full_loss.item(), epoch) 
-        print('Step ',epoch,' over ',epochs,full_loss[0])
+        print('Step',epoch,'over',epochs,full_loss.item())
         
     return model
