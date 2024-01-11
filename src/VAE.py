@@ -81,6 +81,7 @@ class VAE(AE):
     
     def __init__(self, in_channels=256, latent_dims=50,hidden_dim=512,beta = 1):
         super(VAE, self).__init__(in_channels=in_channels,hidden_dim=hidden_dim)
+        self.recons_criterion = torch.nn.MSELoss(reduction='sum')
         encoding_dims = hidden_dim * 5
         self.beta = beta
         self.latent_dims = latent_dims
@@ -132,10 +133,8 @@ class VAE(AE):
         return z, kl_div
 
     def compute_loss(self, x):
-        recons_criterion = torch.nn.MSELoss(reduction='sum')
         x_tilde, kl = self.forward(x)
-        full_loss = recons_criterion(x_tilde,x) - self.beta * kl
-        
+        full_loss = self.recons_criterion(x_tilde,x) - self.beta * kl
         return full_loss
 
 def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None, spec_normalizer=lambda x:x):
@@ -146,19 +145,22 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
     
     for epoch in range(1, epochs + 1):
         full_loss = torch.Tensor([0]).to(device)
-        for _, item in enumerate(dataloader):
+        for i, item in enumerate(dataloader):
             x = item['x']
             batch_size = x.shape[0]
             x = spec_normalizer(x)
             loss = model.compute_loss(x)
-            loss /= batch_size
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            full_loss += loss
-        loss_tensor = torch.cat([loss_tensor, full_loss])
+            if loss.isnan():
+                print("something went wrong")
+            else:
+                loss /= batch_size
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                full_loss += loss
+        #loss_tensor = torch.cat([loss_tensor, full_loss])
         if writer is not None: 
             writer.add_scalar("Loss/train", full_loss.item(), epoch) 
         print('Step ',epoch,' over ',epochs,full_loss[0])
         
-    return model, loss_tensor
+    return model

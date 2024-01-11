@@ -36,9 +36,9 @@ def MNIST_give_dataloader(root='.', batch_size=64):
     
     return train_dataloader, test_dataloader
 
-def NSYNTH_give_dataset(root=".",device=torch.device("cpu"),transform = nn.Identity()):
+def NSYNTH_give_dataset(training_path=".",testing_path=".",device=torch.device("cpu"),transform = nn.Identity()):
     training_data = NSynth(  
-                top_path = root , 
+                top_path = training_path , 
                 device = device,
                 n_signal = 32000,
                 valid_pitch = None, 
@@ -46,16 +46,21 @@ def NSYNTH_give_dataset(root=".",device=torch.device("cpu"),transform = nn.Ident
                 valid_source= None,
                 transform = transform,
     )
-    test_data = training_data #A CHANGER
+    test_data = NSynth(  
+                top_path = testing_path , 
+                device = device,
+                n_signal = 32000,
+                valid_pitch = None, 
+                valid_inst = None, 
+                valid_source= None,
+                transform = transform,
+    )
     
     return training_data, test_data
 
-def NSYNTH_give_dataloader(root='.',batch_size = 64,device=torch.device("cpu"),transform= nn.Identity()):
-    training_data, test_data = NSYNTH_give_dataset(root,device=device,transform=transform)
+def NSYNTH_give_dataloader(training_path=".",testing_path=".",batch_size = 64,device=torch.device("cpu"),transform= nn.Identity()):
+    training_data, test_data = NSYNTH_give_dataset(training_path,testing_path,device=device,transform=transform)
     train_dataloader = DataLoader(training_data, batch_size, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size, shuffle=True)
 
-    train_spec_normalizer, train_spec_denormalizer = find_spec_normalizer(train_dataloader)
-    test_spec_normalizer, test_spec_denormalizer = find_spec_normalizer(train_dataloader)
-
-    return train_dataloader, test_dataloader, train_spec_normalizer, train_spec_denormalizer, test_spec_normalizer, test_spec_denormalizer
+    return train_dataloader, test_dataloader
