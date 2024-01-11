@@ -3,6 +3,7 @@ import os
 import torch
 import torch.nn as nn
 from src.utils import *
+from tqdm import tqdm
 # import torch.distributions as distrib
 # import torchvision
 # import matplotlib
@@ -145,21 +146,19 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
     
     for epoch in range(1, epochs + 1):
         full_loss = torch.Tensor([0]).to(device)
-        for i, item in enumerate(dataloader):
+        for i, item in tqdm(enumerate(dataloader),total=len(dataloader),desc=epoch):
             x = item['x']
             batch_size = x.shape[0]
             x = spec_normalizer(x)
             loss = model.compute_loss(x)
             if loss.isnan():
-                print("something went wrong")
+                tqdm.write("something went wrong")
             else:
                 loss /= batch_size
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 full_loss += loss
-            if i%1000==0:
-                print("Epoch",epoch,"batch",i,"/",len(dataloader), full_loss[0])
         #loss_tensor = torch.cat([loss_tensor, full_loss])
         if writer is not None: 
             writer.add_scalar("Loss/train", full_loss.item(), epoch) 
