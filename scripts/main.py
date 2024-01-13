@@ -63,11 +63,12 @@ inverse_transform = nn.Sequential(
 
 training_file = "/data/atiam_ml_mvae/nsynth-train"
 validation_file = "/data/atiam_ml_mvae/nsynth-valid"
+testing_file = "data/nsynth-test"
 
-train_dataloader, valid_dataloader = NSYNTH_give_dataloader(training_file,validation_file,batch_size=batch_size,device=device,transform=transform)
+train_dataloader, valid_dataloader = NSYNTH_give_dataloader(testing_file,testing_file,batch_size=batch_size,device=device,transform=transform)
 
-training_norm, training_denorm = find_normalizer(train_dataloader,"train")
-valid_norm, valid_denorm = find_normalizer(valid_dataloader,'valid')
+training_norm, training_denorm = find_normalizer(train_dataloader,"test")
+valid_norm, valid_denorm = find_normalizer(valid_dataloader,'test')
 
 #------------------------------------------------Creating model-----------------------------------------------------------------------
 if load_recent:

@@ -163,7 +163,7 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
             torch.save(model,starting_time)
         #loss_tensor = torch.cat([loss_tensor, full_loss])
         if writer is not None: 
-            loss_writer(writer,full_loss,full_kl,full_mse)
+            loss_writer(writer,full_loss,full_kl,full_mse,epoch)
             log_model_grad_norm(model,writer,epoch)
 
 
