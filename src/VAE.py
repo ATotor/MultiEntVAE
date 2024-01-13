@@ -165,10 +165,4 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
         if writer is not None: 
             log_model_loss(writer, full_loss, full_mse, full_kl, epoch)
             #log_model_grad_norm(model,writer,epoch)
-
-
-        print('Full loss:',full_loss.item())
-        print('Reconstruction loss:',full_mse.item())
-        print('Kl divergence:',full_kl.item())
-        print('')
     return model
