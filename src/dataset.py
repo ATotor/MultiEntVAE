@@ -29,10 +29,13 @@ class NSynth(Dataset):
         if valid_pitch is not None:
             minpitch, maxpitch = valid_pitch
             files = filter(lambda f: minpitch <= self.meta[f]['pitch'] <= maxpitch, self.filenames)
+            files = map(lambda x : f'{os.path.abspath(top_path)}/audio/{x}.wav',files)
         if valid_inst is not None:
             files = filter(lambda f: self.meta[f]['instrument_family_str'] in valid_inst, self.filenames)
+            files = map(lambda x : f'{os.path.abspath(top_path)}/audio/{x}.wav',files)
         if valid_source is not None:
             files = filter(lambda f: self.meta[f]['instrument_source_str'] in valid_source, self.filenames)
+            files = map(lambda x : f'{os.path.abspath(top_path)}/audio/{x}.wav',files)
         self.files = list(files)
         self.n_signal = n_signal
         self.transform = transform if transform is not None else nn.Identity()

@@ -41,18 +41,18 @@ def NSYNTH_give_dataset(training_path=".",testing_path=".",device=torch.device("
                 top_path = training_path , 
                 device = device,
                 n_signal = 2,
-                valid_pitch = None, 
+                valid_pitch = [24, 96], 
                 valid_inst = None, 
-                valid_source= None,
+                valid_source= ["acoustic"],
                 transform = transform,
     )
     test_data = NSynth(  
                 top_path = testing_path , 
                 device = device,
                 n_signal = 2,
-                valid_pitch = None, 
+                valid_pitch = [24, 96], 
                 valid_inst = None, 
-                valid_source= None,
+                valid_source= ["acoustic"],
                 transform = transform,
     )
     

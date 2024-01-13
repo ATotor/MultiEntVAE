@@ -51,18 +51,14 @@ def tensorboard_writer(model, dataloader,writer,inverse_transform,train_spec_nor
             writer.add_audio(f'{batch_number}/Initial audio {item["fname"][batch_number]}',item["audio"][batch_number],sample_rate = 16000)
             writer.add_audio(f'{batch_number}/Initial recreated audio {item["fname"][batch_number]}',init_audio,sample_rate = 16000)
             writer.add_audio(f'{batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio,sample_rate = 16000)
-
-            # for i in range(len(gen_audio[batch_number])): 
-            #     writer.add_scalar(f"{batch_number}/Generated Waveform",gen_audio[batch_number][i],i)
-            #     writer.add_scalar(f"{batch_number}/Initial Waveform",init_audio[batch_number][i],i)
+            if batch_number==0:
+                for i in range(0,len(gen_audio),100): 
+                    writer.add_scalar(f"{batch_number}/Generated Waveform",gen_audio[i],i)
+                    writer.add_scalar(f"{batch_number}/Initial recreated Waveform",init_audio[i],i)
+                    writer.add_scalar(f"{batch_number}/Initial Waveform",item["audio"][batch_number][i],i)
 
         writer.close()
 
-def loss_writer(writer: SummaryWriter, full_loss: torch.Tensor, full_kl: torch.Tensor, full_mse: torch.Tensor, epoch: int):
-    writer.add_scalar("Loss/train/total loss", full_loss.item(), epoch) 
-    writer.add_scalar("Loss/train/reconstruction loss", full_mse.item(), epoch) 
-    writer.add_scalar("Loss/train/kl div", full_kl.item(), epoch) 
-    return 
 
 def log_model_grad_norm(model: nn.Module, tb: SummaryWriter, step: int):
     norms = torch.stack([torch.norm(p.grad.detach(), p=2.0) for p in model.parameters() if p.requires_grad])
