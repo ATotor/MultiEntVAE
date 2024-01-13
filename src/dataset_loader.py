@@ -40,7 +40,7 @@ def NSYNTH_give_dataset(training_path=".",testing_path=".",device=torch.device("
     training_data = NSynth(  
                 top_path = training_path , 
                 device = device,
-                n_signal = 32000,
+                n_signal = 2,
                 valid_pitch = None, 
                 valid_inst = None, 
                 valid_source= None,
@@ -49,7 +49,7 @@ def NSYNTH_give_dataset(training_path=".",testing_path=".",device=torch.device("
     test_data = NSynth(  
                 top_path = testing_path , 
                 device = device,
-                n_signal = 32000,
+                n_signal = 2,
                 valid_pitch = None, 
                 valid_inst = None, 
                 valid_source= None,

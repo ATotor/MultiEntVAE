@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from src.utils import *
 from tqdm import tqdm
+from src.plots import *
 # import torch.distributions as distrib
 # import torchvision
 # import matplotlib
@@ -14,7 +15,7 @@ from tqdm import tqdm
 
 
 class AE(nn.Module):
-    def __init__(self, in_channels=256,hidden_dim=512):
+    def __init__(self, in_channels=128,hidden_dim=512):
         super(AE, self).__init__()
         self.dummy_param = nn.Parameter(torch.empty(0)) #To find the device
         self.hidden_dim = hidden_dim
@@ -22,17 +23,13 @@ class AE(nn.Module):
             LayerEncoder(in_channels, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1),
             LayerEncoder(hidden_dim, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1),
             LayerEncoder(hidden_dim, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1),
-            nn.Dropout1d(p=0.2)
         )
         
         self.decoder = nn.Sequential(
-            LayerDecoder(hidden_dim, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
-            LayerDecoder(hidden_dim, hidden_dim, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
-            LayerDecoder(hidden_dim, in_channels, kernel_size_conv=3,stride_conv=2,padding_conv=1,output_padding_conv=0),
-            #nn.Dropout1d(p=0.2)
-            #Normalize()
+            LayerDecoder(hidden_dim, hidden_dim, kernel_size_conv=4,stride_conv=2,padding_conv=1,output_padding_conv=0),
+            LayerDecoder(hidden_dim, hidden_dim, kernel_size_conv=4,stride_conv=2,padding_conv=1,output_padding_conv=0),
+            LayerDecoder(hidden_dim, in_channels, kernel_size_conv=4,stride_conv=2,padding_conv=1,output_padding_conv=0),
             nn.Conv1d(in_channels,in_channels,kernel_size=3,padding='same'),
-            #nn.ReLU()
             )
 
     def forward(self, x):
@@ -54,7 +51,7 @@ class LayerEncoder(nn.Module):
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.batchnorm(x)
+        #x = self.batchnorm(x)
         x = self.relu(x)
         return x
     
@@ -72,7 +69,7 @@ class LayerDecoder(nn.Module):
     def forward(self, x):
         #x = self.upsample(x)
         x = self.conv(x)
-        x = self.batchnorm(x)
+        #x = self.batchnorm(x)
         x = self.relu(x)
 
         return x
@@ -80,10 +77,11 @@ class LayerDecoder(nn.Module):
 
 class VAE(AE):
     
-    def __init__(self, in_channels=256, latent_dims=50,hidden_dim=512,beta = 1):
+    def __init__(self, in_channels=128, latent_dims=50,hidden_dim=512,beta = 1):
         super(VAE, self).__init__(in_channels=in_channels,hidden_dim=hidden_dim)
         self.recons_criterion = torch.nn.MSELoss(reduction='sum')
-        encoding_dims = hidden_dim * 5
+        self.encoding_shape2 = 16
+        encoding_dims = hidden_dim * self.encoding_shape2
         self.beta = beta
         self.latent_dims = latent_dims
         self.mu = nn.Sequential(nn.Linear(encoding_dims,latent_dims),
@@ -107,7 +105,7 @@ class VAE(AE):
         #     )
 
     def encode(self, x):
-        x_hidden = self.encoder(x).view(-1,self.hidden_dim*5)
+        x_hidden = self.encoder(x).view(-1,self.hidden_dim*self.encoding_shape2)
         mu = self.mu(x_hidden)
         sigma = self.sigma(x_hidden)
         
@@ -115,7 +113,7 @@ class VAE(AE):
     
     def decode(self, z):
         z = self.decode_layer(z)
-        z = z.view(-1,self.hidden_dim,5)
+        z = z.view(-1,self.hidden_dim,self.encoding_shape2)
         return self.decoder(z)
 
     def forward(self, x):
@@ -130,38 +128,46 @@ class VAE(AE):
     def latent(self, mu, sigma):
         device = self.dummy_param.device
         z = mu + sigma*torch.randn_like(sigma,device=device)
-        kl_div = 0.5*(1 + torch.log(sigma**2) - mu**2 - sigma**2).sum()
+        kl_div = 0.5*(-1 - torch.log(sigma**2) + mu**2 + sigma**2).sum()
         return z, kl_div
 
     def compute_loss(self, x):
         x_tilde, kl = self.forward(x)
-        full_loss = self.recons_criterion(x_tilde,x) - self.beta * kl
-        return full_loss
+        mse_loss = self.recons_criterion(x_tilde,x)
+        full_loss = mse_loss + self.beta * kl
+        return full_loss, mse_loss, kl
 
-def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None, spec_normalizer=lambda x:x):
+def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None, spec_normalizer=lambda x:x,starting_time=""):
     optimizer = torch.optim.Adam(model.parameters(), lr)
     # criterion_1 = torch.nn.MSELoss(reduction='sum')
     # criterion_2 = torch.nn.KLDivLoss(reduction='sum')
-    loss_tensor = torch.tensor([]).to(device)
     
     for epoch in range(1, epochs + 1):
         full_loss = torch.Tensor([0]).to(device)
-        for i, item in tqdm(enumerate(dataloader),total=len(dataloader),desc=str(epoch)):
+        full_mse = torch.Tensor([0]).to(device)
+        full_kl = torch.Tensor([0]).to(device)
+        for i, item in tqdm(enumerate(dataloader),total=len(dataloader),desc=f"Epoch {epoch} over {epochs}"):
             x = item['x']
             batch_size = x.shape[0]
             x = spec_normalizer(x)
-            loss = model.compute_loss(x)
-            if loss.isnan():
-                tqdm.write("something went wrong")
-            else:
-                loss /= batch_size
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                full_loss += loss
+            loss, mse_loss, kl_div = model.compute_loss(x)
+            loss /= batch_size
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+            full_loss += loss
+            full_mse += mse_loss
+            full_kl += kl_div
+        if starting_time :
+            torch.save(model,starting_time)
         #loss_tensor = torch.cat([loss_tensor, full_loss])
         if writer is not None: 
-            writer.add_scalar("Loss/train", full_loss.item(), epoch) 
-        print('Step',epoch,'over',epochs,full_loss.item())
-        
+            loss_writer(writer,full_loss,full_kl,full_mse)
+            log_model_grad_norm(model,writer,epoch)
+
+
+        print('Full loss:',full_loss.item())
+        print('Reconstruction loss:',full_mse.item())
+        print('Kl divergence:',full_kl.item())
     return model

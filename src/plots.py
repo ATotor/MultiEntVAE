@@ -3,7 +3,7 @@
 import torch
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
-import torchvision
+import torch.nn as nn
 from torchaudio import transforms as T
 from soundfile import write
 
@@ -57,3 +57,15 @@ def tensorboard_writer(model, dataloader,writer,inverse_transform,train_spec_nor
             #     writer.add_scalar(f"{batch_number}/Initial Waveform",init_audio[batch_number][i],i)
 
         writer.close()
+
+def loss_writer(writer: SummaryWriter, full_loss: torch.Tensor, full_kl: torch.Tensor, full_mse: torch.Tensor, epoch: int):
+    writer.add_scalar("Loss/train/total loss", full_loss.item(), epoch) 
+    writer.add_scalar("Loss/train/reconstruction loss", full_mse.item(), epoch) 
+    writer.add_scalar("Loss/train/kl div", full_kl.item(), epoch) 
+    return 
+
+def log_model_grad_norm(model: nn.Module, tb: SummaryWriter, step: int):
+    norms = torch.stack([torch.norm(p.grad.detach(), p=2.0) for p in model.parameters() if p.requires_grad])
+    tb.add_scalar("grad_norm/norm", norms.norm(2.0), step)
+    tb.add_scalar("grad_norm/mean", norms.mean(), step)
+    return

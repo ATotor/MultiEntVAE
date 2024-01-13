@@ -12,10 +12,10 @@ class NSynth(Dataset):
                  top_path: str, 
                  *, 
                  device: str | torch.device = "cpu",
-                 n_signal: float | None = None, #Will be converted to a power of 2
-                 valid_pitch: tuple[int, int] | None = None, 
+                 n_signal: float | None = None,
+                 valid_pitch: tuple[int, int] | None = [24, 96], 
                  valid_inst: list[str] | None = None, 
-                 valid_source: list[str] | None = None,
+                 valid_source: list[str] | None = ["acoustic"],
                  transform: nn.Module | None = None,
         ):
         self.device = device
@@ -34,7 +34,7 @@ class NSynth(Dataset):
         if valid_source is not None:
             files = filter(lambda f: self.meta[f]['instrument_source_str'] in valid_source, self.filenames)
         self.files = list(files)
-        self.n_signal = next_power_of_2(n_signal)
+        self.n_signal = n_signal
         self.transform = transform if transform is not None else nn.Identity()
         print(f"There are {len(self.files)} files in the dataset.")
         return
@@ -45,7 +45,7 @@ class NSynth(Dataset):
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, float, str]:
         fname = self.files[idx]
         _fname = self.filenames[idx]
-        audio, _ = li.load(fname, sr=16000, mono=True, duration=self.n_signal / self.meta[_fname]['sample_rate'])
+        audio, _ = li.load(fname, sr=16000, mono=True, duration=self.n_signal)
         audio = torch.from_numpy(audio).to(self.device)
         pitch = self.meta[_fname]['pitch']
         return {"x": self.transform(audio), "pitch": pitch, "fname": _fname,  "audio" : audio}
