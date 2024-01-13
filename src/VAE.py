@@ -142,27 +142,29 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
     # criterion_1 = torch.nn.MSELoss(reduction='sum')
     # criterion_2 = torch.nn.KLDivLoss(reduction='sum')
     
-    for epoch in range(1, epochs + 1):
+    for epoch in tqdm(range(1, epochs + 1)):
         full_loss = torch.Tensor([0]).to(device)
         full_mse = torch.Tensor([0]).to(device)
         full_kl = torch.Tensor([0]).to(device)
-        for i, item in tqdm(enumerate(dataloader),total=len(dataloader),desc=f"Epoch {epoch} over {epochs}"):
+        for i, item in tqdm(enumerate(dataloader),total=len(dataloader),desc=f"Epoch {epoch} over {epochs}",leave=False):
             x = item['x']
             batch_size = x.shape[0]
             x = spec_normalizer(x)
             loss, mse_loss, kl_div = model.compute_loss(x)
+            full_loss += loss
+            full_mse += mse_loss
+            full_kl += kl_div
             loss /= batch_size
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
-            full_loss += loss
-            full_mse += mse_loss
-            full_kl += kl_div
+
         if starting_time :
             torch.save(model,starting_time)
         #loss_tensor = torch.cat([loss_tensor, full_loss])
         if writer is not None: 
+            tqdm.write(f'Epoch {epoch}\tFull loss: {full_loss.item():0.2e}\tReconstruction loss: {full_mse.item():0.2e}\tKl divergence: {full_kl.item():0.2e}')
             log_model_loss(writer, full_loss, full_mse, full_kl, epoch)
             #log_model_grad_norm(model,writer,epoch)
     return model

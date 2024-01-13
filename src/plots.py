@@ -70,7 +70,6 @@ def log_model_grad_norm(model: nn.Module, tb: SummaryWriter, step: int):
     return
 
 def log_model_loss(writer: SummaryWriter, full_loss: torch.Tensor, full_mse: torch.Tensor, full_kl: torch.Tensor, epoch: int):
-    print(f'Full loss: {full_loss.item():0.2e}\tReconstruction loss: {full_mse.item():0.2e}\tKl divergence: {full_kl.item():0.2e}')
     writer.add_scalar("Loss/total loss", full_loss.item(), epoch) 
     writer.add_scalar("Loss/reconstruction loss", full_mse.item(), epoch) 
     writer.add_scalar("Loss/kl div", full_kl.item(), epoch) 
