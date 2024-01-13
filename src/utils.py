@@ -44,8 +44,9 @@ def save_loss(loss):
     np.save(os.path.join("results","loss_"+date_time), loss)
 
 class Normalize(nn.Module):
-    def __init__(self):
+    def __init__(self,type='01'):
         super(Normalize, self).__init__()
+        self.type=type
     def forward(self, x):
         if len(x.shape) == 3:
             maxval = x.amax(dim=(1,2)).reshape((-1,1,1))
@@ -53,7 +54,10 @@ class Normalize(nn.Module):
         else:
             minval = x.min()
             maxval = x.max()
-        normalized = (x - minval) / (maxval - minval)
+        if self.type=="01":
+            normalized = (x - minval) / (maxval - minval)
+        if self.type=='max1':
+            normalized = x/np.abs(x).max()
         return normalized
     
 class func2module(nn.Module):
@@ -62,4 +66,4 @@ class func2module(nn.Module):
         self.f = f
     def forward(self,x):
         return self.f(x)
-    
+

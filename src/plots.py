@@ -46,16 +46,19 @@ def tensorboard_writer(model, dataloader,writer,inverse_transform,train_spec_nor
         for batch_number in range(batch_size):
             init_audio = inverse_transform(spec[batch_number])
             gen_audio = inverse_transform(output[batch_number])
-            writer.add_image(f'{batch_number}/Initial Spectrogram {item["fname"][batch_number]}',images[batch_number])
-            writer.add_image(f'{batch_number}/Generated Spectrogram {item["fname"][batch_number]}',output_image[batch_number])
-            writer.add_audio(f'{batch_number}/Initial audio {item["fname"][batch_number]}',item["audio"][batch_number],sample_rate = 16000)
-            writer.add_audio(f'{batch_number}/Initial recreated audio {item["fname"][batch_number]}',init_audio,sample_rate = 16000)
-            writer.add_audio(f'{batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio,sample_rate = 16000)
-            if batch_number==0:
-                for i in range(0,len(gen_audio),100): 
+            original_audio = item["audio"][batch_number]
+            if batch_number == 0:
+                for i in range(0,len(gen_audio),300): 
                     writer.add_scalar(f"{batch_number}/Generated Waveform",gen_audio[i],i)
                     writer.add_scalar(f"{batch_number}/Initial recreated Waveform",init_audio[i],i)
-                    writer.add_scalar(f"{batch_number}/Initial Waveform",item["audio"][batch_number][i],i)
+                for i in range(0,len(original_audio),300):
+                    writer.add_scalar(f"{batch_number}/Initial Waveform",original_audio[i],i)
+
+            writer.add_image(f'{batch_number}/Initial Spectrogram {item["fname"][batch_number]}',images[batch_number])
+            writer.add_image(f'{batch_number}/Generated Spectrogram {item["fname"][batch_number]}',output_image[batch_number])
+            writer.add_audio(f'{batch_number}/Initial audio {item["fname"][batch_number]}',original_audio,sample_rate = 16000)
+            writer.add_audio(f'{batch_number}/Initial recreated audio {item["fname"][batch_number]}',init_audio,sample_rate = 16000)
+            writer.add_audio(f'{batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio,sample_rate = 16000)
 
         writer.close()
 
@@ -64,4 +67,10 @@ def log_model_grad_norm(model: nn.Module, tb: SummaryWriter, step: int):
     norms = torch.stack([torch.norm(p.grad.detach(), p=2.0) for p in model.parameters() if p.requires_grad])
     tb.add_scalar("grad_norm/norm", norms.norm(2.0), step)
     tb.add_scalar("grad_norm/mean", norms.mean(), step)
+    return
+
+def log_model_loss(writer: SummaryWriter, full_loss: torch.Tensor, full_mse: torch.Tensor, full_kl: torch.Tensor, epoch: int):
+    writer.add_scalar("Loss/total loss", full_loss.item(), epoch) 
+    writer.add_scalar("Loss/reconstruction loss", full_mse.item(), epoch) 
+    writer.add_scalar("Loss/kl div", full_kl.item(), epoch) 
     return

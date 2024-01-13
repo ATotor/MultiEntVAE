@@ -4,6 +4,9 @@
 #os.chdir('../')
 
 import torch
+import pickle
+from torchinfo import summary
+
 import torchaudio.transforms as T
 from argparse import ArgumentParser
 
@@ -58,14 +61,14 @@ inverse_transform = nn.Sequential(
     T.InverseMelScale(sample_rate=Fe,n_mels=n_mels,n_stft=nfft // 2 + 1,norm="slaney"),
     #T.GriffinLim(n_fft=2048),
     librosa_GriffinLim(n_fft=nfft, hop_length=hop_length),
-    func2module(lambda x:x/x.max())
+    Normalize('max1')
 ).to(device)
 
 training_file = "/data/atiam_ml_mvae/nsynth-train"
 validation_file = "/data/atiam_ml_mvae/nsynth-valid"
 testing_file = "data/nsynth-test"
 
-train_dataloader, valid_dataloader = NSYNTH_give_dataloader(testing_file,testing_file,batch_size=batch_size,device=device,transform=transform)
+train_dataloader, valid_dataloader = NSYNTH_give_dataloader(training_file,validation_file,batch_size=batch_size,device=device,transform=transform)
 
 training_norm, training_denorm = find_normalizer(train_dataloader,"test")
 valid_norm, valid_denorm = find_normalizer(valid_dataloader,'test')
@@ -91,6 +94,10 @@ if save:
     saving_model_file = os.path.join("results",f"VAE_{starting_time}")
     torch.save(model,saving_model_file)
 else : saving_model_file =""
+
+model_summary = summary(model, input_size=(128,128), depth=4)
+with open('summary.txt', 'w') as f:
+    f.write(str(model_summary))
 
 #------------------------------------------------Training model-----------------------------------------------------------------------
 if train:
