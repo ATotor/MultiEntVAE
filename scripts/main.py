@@ -25,7 +25,6 @@ parser.add_argument('--epochs', type=int, default=5)
 parser.add_argument('--beta', type=float, default=1)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--batch_size', type=int, default=16)
-parser.add_argument('--no-log', action="store_false")
 parser.add_argument('--no-save', action="store_false")
 parser.add_argument('--load-recent', action="store_true", help="Load most recent model")
 parser.add_argument('--load', type=str, default="", help="Load specified model")
@@ -36,7 +35,6 @@ args = parser.parse_args()
 epochs = args.epochs
 lr = args.lr
 batch_size = args.batch_size
-log = args.no_log
 save = args.no_save
 load_recent = args.load_recent
 load = args.load
@@ -88,8 +86,8 @@ else:
 n_params = sum(p.numel() for p in model.parameters())
 print(f"Number of parameters : {n_params:}")
 log_dir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-writer = SummaryWriter(log_dir) if log else None
-
+writer = SummaryWriter(log_dir)
+log_arg(writer,args)
 if save:
     saving_model_file = os.path.join("results",f"VAE_{starting_time}")
     torch.save(model,saving_model_file)
@@ -99,6 +97,7 @@ model_summary = summary(model, input_size=(128,128), depth=4)
 with open('summary.txt', 'w') as f:
     f.write(str(model_summary))
 
+
 #------------------------------------------------Training model-----------------------------------------------------------------------
 if train:
     print("Training model")
@@ -106,5 +105,4 @@ if train:
 
 
 #------------------------------------------------Writing tensorboard-----------------------------------------------------------------------
-if log:
-    tensorboard_writer(model,valid_dataloader,writer,nn.Sequential(valid_denorm,inverse_transform),valid_norm,args)
+tensorboard_writer(model,valid_dataloader,writer,nn.Sequential(valid_denorm,inverse_transform),valid_norm)

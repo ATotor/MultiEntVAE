@@ -25,10 +25,8 @@ def disp_MNIST_example(model, dataloader):
             ax[1,i].imshow(xbar[i].reshape(28,28), cmap="gray")
     plt.show()
 
-def tensorboard_writer(model, dataloader,writer,inverse_transform,train_spec_normalizer,args):
+def tensorboard_writer(model, dataloader,writer,inverse_transform,train_spec_normalizer):
     print("Creating logs")
-    writer.add_text(f"beta",str(args.beta))
-    writer.add_text(f"learning rate",str(args.lr))
     model.eval()
     with torch.no_grad():
         item = next(iter(dataloader))
@@ -73,4 +71,9 @@ def log_model_loss(writer: SummaryWriter, full_loss: torch.Tensor, full_mse: tor
     writer.add_scalar("Loss/total loss", full_loss.item(), epoch) 
     writer.add_scalar("Loss/reconstruction loss", full_mse.item(), epoch) 
     writer.add_scalar("Loss/kl div", full_kl.item(), epoch) 
+    return
+
+def log_arg(writer,args):
+    writer.add_text(f"beta",str(args.beta))
+    writer.add_text(f"learning rate",str(args.lr))
     return
