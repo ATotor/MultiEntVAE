@@ -16,7 +16,7 @@ from src.plots import *
 from src.utils import *
 from src.preprocessing import *
 
-starting_time = datetime.now().strftime("%d-%m-%Y_%H_%M")
+starting_time = datetime.now().strftime("%d-%m-%Y_%H_%M_%S")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -81,11 +81,14 @@ elif load:
     model = load_model(load)
     model = model.to(device)
 else:
-    model = VAE(in_channels=128, hidden_dim = 512, latent_dims=256, beta = beta).to(device)
+    model = VAE(in_channels=128, 
+                hidden_dim = 512, 
+                latent_dims=256, 
+                beta = beta).to(device)
 
 n_params = sum(p.numel() for p in model.parameters())
 print(f"Number of parameters : {n_params:}")
-log_dir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "logs/" + starting_time
 writer = SummaryWriter(log_dir)
 log_arg(writer,args)
 if save:
@@ -93,7 +96,7 @@ if save:
     torch.save(model,saving_model_file)
 else : saving_model_file =""
 
-model_summary = summary(model, input_size=(128,128), depth=4)
+model_summary = summary(model, input_size=(batch_size,128,128), depth=4)
 with open('summary.txt', 'w') as f:
     f.write(str(model_summary))
 
@@ -101,8 +104,26 @@ with open('summary.txt', 'w') as f:
 #------------------------------------------------Training model-----------------------------------------------------------------------
 if train:
     print("Training model")
-    model= train_VAE(model, train_dataloader, epochs, lr,device,writer, training_norm,saving_model_file)    
-
-
-#------------------------------------------------Writing tensorboard-----------------------------------------------------------------------
-tensorboard_writer(model,valid_dataloader,writer,nn.Sequential(valid_denorm,inverse_transform),valid_norm)
+    model = train_VAE(model=model, 
+              dataloader=train_dataloader, 
+              valid_dataloader=valid_dataloader, 
+              valid_norm=valid_norm,
+              valid_denorm=valid_denorm,
+              inverse_transform=inverse_transform,
+              epochs=epochs, 
+              lr=lr, 
+              device=device,
+              writer=writer, 
+              spec_normalizer=training_norm,
+              saving_model_file=saving_model_file,
+              )
+    
+#------------------------------------------------Creating logs-----------------------------------------------------------------------
+tensorboard_writer(model=model,
+                    valid_dataloader=valid_dataloader,
+                    writer=writer,
+                    inverse_transform=nn.Sequential(valid_denorm,inverse_transform),
+                    normalizer=valid_norm,
+                    batch_size=3,
+                    epoch="Final"
+                    )

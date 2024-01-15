@@ -136,8 +136,26 @@ class VAE(AE):
         mse_loss = self.recons_criterion(x_tilde,x)
         full_loss = mse_loss + self.beta * kl
         return full_loss, mse_loss, kl
+    
+    def generate(self):
+        device = self.dummy_param.device
+        x = torch.randn((8,128,128),device=device)
+        
 
-def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu"),writer=None, spec_normalizer=lambda x:x,starting_time=""):
+def train_VAE(model:nn.Module, 
+              dataloader:torch.utils.data.Dataset, 
+              valid_dataloader:torch.utils.data.Dataset, 
+              valid_norm:nn.Module,
+              valid_denorm:nn.Module,
+              inverse_transform:nn.Module,
+              writer:torch.utils.tensorboard.SummaryWriter, 
+              epochs:int=5, 
+              lr:float=1e-3, 
+              device:torch.device="cpu",
+              spec_normalizer=lambda x:x,
+              saving_model_file:str="",
+              
+              ):
     optimizer = torch.optim.Adam(model.parameters(), lr)
     # criterion_1 = torch.nn.MSELoss(reduction='sum')
     # criterion_2 = torch.nn.KLDivLoss(reduction='sum')
@@ -160,11 +178,22 @@ def train_VAE(model, dataloader, epochs=5, lr=1e-3, device = torch.device("cpu")
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
 
-        if starting_time :
-            torch.save(model,starting_time)
+        if saving_model_file :
+            torch.save(model,saving_model_file)
         #loss_tensor = torch.cat([loss_tensor, full_loss])
-        if writer is not None: 
-            tqdm.write(f'Epoch {epoch}\tFull loss: {full_loss.item():0.2e}\tReconstruction loss: {full_mse.item():0.2e}\tKl divergence: {full_kl.item():0.2e}')
-            log_model_loss(writer, full_loss, full_mse, full_kl, epoch)
-            #log_model_grad_norm(model,writer,epoch)
+            
+        #---------------------------Writing on logs-------------------------------------
+
+        tqdm.write(f'Epoch {epoch}\tFull loss: {full_loss.item():0.2e}\tReconstruction loss: {full_mse.item():0.2e}\tKl divergence: {full_kl.item():0.2e}')
+        log_model_loss(writer, full_loss, full_mse, full_kl, epoch)
+        if epoch%5==1:
+            tensorboard_writer(model=model,
+                               dataloader=valid_dataloader,
+                               writer=writer,
+                               inverse_transform=nn.Sequential(valid_denorm,inverse_transform),
+                               normalizer=valid_norm,
+                               batch_size=3,
+                               epoch=epoch
+                               )
+        #log_model_grad_norm(model,writer,epoch)
     return model

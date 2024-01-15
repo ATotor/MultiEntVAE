@@ -25,14 +25,22 @@ def disp_MNIST_example(model, dataloader):
             ax[1,i].imshow(xbar[i].reshape(28,28), cmap="gray")
     plt.show()
 
-def tensorboard_writer(model, dataloader,writer,inverse_transform,train_spec_normalizer):
-    print("Creating logs")
+def tensorboard_writer(model:nn.Module, 
+                       dataloader:torch.utils.data.Dataset,
+                       writer:SummaryWriter,
+                       inverse_transform:nn.Module,
+                       normalizer:nn.Module,
+                       batch_size:int|None=None,
+                       epoch:int|str = "Final"
+                       ):
+    if epoch=="Final":
+        print("Creating logs")
     model.eval()
     with torch.no_grad():
         item = next(iter(dataloader))
         spec = item['x']
-        spec = train_spec_normalizer(spec)
-        batch_size = spec.shape[0]
+        spec = normalizer(spec)
+        batch_size = spec.shape[0] if batch_size is None else batch_size
 
         images = spec[:,None,:,:]
         output, _ = model(spec)
@@ -47,16 +55,16 @@ def tensorboard_writer(model, dataloader,writer,inverse_transform,train_spec_nor
             original_audio = item["audio"][batch_number]
             if batch_number == 0:
                 for i in range(0,len(gen_audio),300): 
-                    writer.add_scalar(f"{batch_number}/Generated Waveform",gen_audio[i],i)
-                    writer.add_scalar(f"{batch_number}/Initial recreated Waveform",init_audio[i],i)
+                    writer.add_scalar(f"Batch number {batch_number} Epoch {epoch}/Generated Waveform",gen_audio[i],i)
+                    writer.add_scalar(f"Batch number {batch_number} Epoch {epoch}/Initial recreated Waveform",init_audio[i],i)
                 for i in range(0,len(original_audio),300):
-                    writer.add_scalar(f"{batch_number}/Initial Waveform",original_audio[i],i)
+                    writer.add_scalar(f"Batch number {batch_number} Epoch {epoch}/Initial Waveform",original_audio[i],i)
 
-            writer.add_image(f'{batch_number}/Initial Spectrogram {item["fname"][batch_number]}',images[batch_number])
-            writer.add_image(f'{batch_number}/Generated Spectrogram {item["fname"][batch_number]}',output_image[batch_number])
-            writer.add_audio(f'{batch_number}/Initial audio {item["fname"][batch_number]}',original_audio,sample_rate = 16000)
-            writer.add_audio(f'{batch_number}/Initial recreated audio {item["fname"][batch_number]}',init_audio,sample_rate = 16000)
-            writer.add_audio(f'{batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio,sample_rate = 16000)
+            writer.add_image(f'Batch number {batch_number} Epoch {epoch}/Initial Spectrogram {item["fname"][batch_number]}',images[batch_number])
+            writer.add_image(f'Batch number {batch_number} Epoch {epoch}/Generated Spectrogram {item["fname"][batch_number]}',output_image[batch_number])
+            writer.add_audio(f'Batch number {batch_number} Epoch {epoch}/Initial audio {item["fname"][batch_number]}',original_audio,sample_rate = 16000)
+            writer.add_audio(f'Batch number {batch_number} Epoch {epoch}/Initial recreated audio {item["fname"][batch_number]}',init_audio,sample_rate = 16000)
+            writer.add_audio(f'Batch number {batch_number} Epoch {epoch}/Generated audio {item["fname"][batch_number]}',gen_audio,sample_rate = 16000)
 
         writer.close()
 
