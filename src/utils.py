@@ -21,10 +21,10 @@ def find_most_recent_VAE():
         for file in files:
             if len(file)>4 and file[:4] == "VAE_":
                 strdate = file[4:]
-                date_object = datetime.strptime(strdate,"%d-%m-%Y_%H_%M")
+                date_object = datetime.strptime(strdate,"%d-%m-%Y_%H_%M_%S")
                 found_files.append(date_object)
     if found_files:
-        found_date = (sorted(found_files)[-1]).strftime("%d-%m-%Y_%H_%M")
+        found_date = (sorted(found_files)[-1]).strftime("%d-%m-%Y_%H_%M_%S")
         most_recent_file = "VAE_"+found_date
         return most_recent_file
     else:
@@ -33,16 +33,6 @@ def find_most_recent_VAE():
 def load_model(file_name):
     return torch.load('results/'+file_name)
     
-
-def save_model(model):
-    with torch.no_grad():
-        date_time = datetime.now().strftime("%d-%m-%Y_%H_%M")
-        torch.save(model, 
-                   os.path.join("results","VAE_"+date_time))
-def save_loss(loss):
-    date_time = datetime.now().strftime("%d-%m-%Y_%H_%M")
-    np.save(os.path.join("results","loss_"+date_time), loss)
-
 class Normalize(nn.Module):
     def __init__(self,type='01'):
         super(Normalize, self).__init__()
@@ -57,7 +47,7 @@ class Normalize(nn.Module):
         if self.type=="01":
             normalized = (x - minval) / (maxval - minval)
         if self.type=='max1':
-            normalized = x/np.abs(x).max()
+            normalized = x/torch.abs(x).max()
         return normalized
     
 class func2module(nn.Module):
@@ -67,3 +57,7 @@ class func2module(nn.Module):
     def forward(self,x):
         return self.f(x)
 
+def interp(model,x1,x2,n_step):
+    z1 = model.encode(x1)[0]
+    z2 = model.encode(x2)[0]
+    return torch.stack([model.decode(n/n_step * z2 + (n_step-n)/n_step * z1) for n in range(n_step+1)])

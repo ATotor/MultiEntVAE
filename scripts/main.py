@@ -57,8 +57,8 @@ transform = nn.Sequential(
 inverse_transform = nn.Sequential(
     func2module(torch.expm1),
     T.InverseMelScale(sample_rate=Fe,n_mels=n_mels,n_stft=nfft // 2 + 1,norm="slaney"),
-    #T.GriffinLim(n_fft=2048),
-    librosa_GriffinLim(n_fft=nfft, hop_length=hop_length),
+    T.GriffinLim(n_fft=nfft,hop_length=hop_length),
+    #librosa_GriffinLim(n_fft=nfft, hop_length=hop_length),
     Normalize('max1')
 ).to(device)
 
@@ -71,24 +71,35 @@ train_dataloader, valid_dataloader = NSYNTH_give_dataloader(training_file,valida
 training_norm, training_denorm = find_normalizer(train_dataloader,"test")
 valid_norm, valid_denorm = find_normalizer(valid_dataloader,'test')
 
+iter_train = iter(train_dataloader)
+iter_valid = iter(valid_dataloader)
+train_dummy_item1 = next(iter_train)
+train_dummy_item2 = next(iter_train)
+valid_dummy_item1 = next(iter_valid)
+valid_dummy_item2 = next(iter_valid)
 #------------------------------------------------Creating model-----------------------------------------------------------------------
 if load_recent:
     print("Loading most recent model")
     model = load_model(find_most_recent_VAE())
     model = model.to(device)
 elif load:
-    print("Loading model" +load)
+    print("Loading model " +load)
     model = load_model(load)
     model = model.to(device)
 else:
-    model = VAE(in_channels=128, 
-                hidden_dim = 512, 
+    model = VAE(in_channels=train_dummy_item1['x'].shape[1], 
+                hidden_dims=[256,512,512], 
                 latent_dims=256, 
                 beta = beta).to(device)
 
 n_params = sum(p.numel() for p in model.parameters())
 print(f"Number of parameters : {n_params:}")
-log_dir = "logs/" + starting_time
+
+model_summary = summary(model, input_size=train_dummy_item1['x'].shape,verbose=0)
+with open('summary.txt', 'w') as f:
+    f.write(str(model_summary))
+
+log_dir = "logs/" + starting_time + "_beta=" + str(beta)
 writer = SummaryWriter(log_dir)
 log_arg(writer,args)
 if save:
@@ -96,34 +107,47 @@ if save:
     torch.save(model,saving_model_file)
 else : saving_model_file =""
 
-model_summary = summary(model, input_size=(batch_size,128,128), depth=4)
-with open('summary.txt', 'w') as f:
-    f.write(str(model_summary))
-
-
 #------------------------------------------------Training model-----------------------------------------------------------------------
 if train:
     print("Training model")
     model = train_VAE(model=model, 
               dataloader=train_dataloader, 
-              valid_dataloader=valid_dataloader, 
+              valid_dummy_item1=valid_dummy_item1, 
+              train_dummy_item1=train_dummy_item1,
+              valid_dummy_item2=valid_dummy_item2, 
+              train_dummy_item2=train_dummy_item2,
               valid_norm=valid_norm,
               valid_denorm=valid_denorm,
+              training_norm=training_norm,
+              training_denorm=training_denorm,
               inverse_transform=inverse_transform,
               epochs=epochs, 
               lr=lr, 
               device=device,
               writer=writer, 
-              spec_normalizer=training_norm,
               saving_model_file=saving_model_file,
               )
     
 #------------------------------------------------Creating logs-----------------------------------------------------------------------
-tensorboard_writer(model=model,
-                    valid_dataloader=valid_dataloader,
+tensorboard_writer( model=model,
+                    item1=train_dummy_item1, 
+                    item2=train_dummy_item2, 
+                    dataloader_type = "Training",
+                    writer=writer,
+                    inverse_transform=nn.Sequential(training_denorm,inverse_transform),
+                    normalizer=training_norm,
+                    batch_size=None,
+                    epoch=epochs
+                    )
+
+tensorboard_writer( model=model,
+                    item1=valid_dummy_item1, 
+                    item2=valid_dummy_item2, 
+                    dataloader_type = "Validation",
                     writer=writer,
                     inverse_transform=nn.Sequential(valid_denorm,inverse_transform),
                     normalizer=valid_norm,
-                    batch_size=3,
-                    epoch="Final"
+                    batch_size=None,
+                    epoch=epochs
                     )
+

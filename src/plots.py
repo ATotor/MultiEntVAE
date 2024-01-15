@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
 from torchaudio import transforms as T
-from soundfile import write
+from mpl_toolkits.axes_grid1 import ImageGrid
+from src.utils import * 
 
 def disp_loss(loss):
     with torch.no_grad():
@@ -26,18 +27,20 @@ def disp_MNIST_example(model, dataloader):
     plt.show()
 
 def tensorboard_writer(model:nn.Module, 
-                       dataloader:torch.utils.data.Dataset,
+                       item1:dict,
+                       item2:dict,
                        writer:SummaryWriter,
                        inverse_transform:nn.Module,
                        normalizer:nn.Module,
                        batch_size:int|None=None,
-                       epoch:int|str = "Final"
+                       epoch:int=0,
+                       dataloader_type:str='Validation',
+                       n_steps_interp:int=8
                        ):
-    if epoch=="Final":
-        print("Creating logs")
+
     model.eval()
     with torch.no_grad():
-        item = next(iter(dataloader))
+        item = item1
         spec = item['x']
         spec = normalizer(spec)
         batch_size = spec.shape[0] if batch_size is None else batch_size
@@ -45,29 +48,61 @@ def tensorboard_writer(model:nn.Module,
         images = spec[:,None,:,:]
         output, _ = model(spec)
         output_image = output[:,None,:,:]
-        
+
+        init_audio = inverse_transform(spec)
+        gen_audio = inverse_transform(output)
+        original_audio = item["audio"]
+
         torch.save(spec,'original_spec_tensor')
         torch.save(output,'generated_spec_tensor')
         
         for batch_number in range(batch_size):
-            init_audio = inverse_transform(spec[batch_number])
-            gen_audio = inverse_transform(output[batch_number])
-            original_audio = item["audio"][batch_number]
-            if batch_number == 0:
-                for i in range(0,len(gen_audio),300): 
-                    writer.add_scalar(f"Batch number {batch_number} Epoch {epoch}/Generated Waveform",gen_audio[i],i)
-                    writer.add_scalar(f"Batch number {batch_number} Epoch {epoch}/Initial recreated Waveform",init_audio[i],i)
-                for i in range(0,len(original_audio),300):
-                    writer.add_scalar(f"Batch number {batch_number} Epoch {epoch}/Initial Waveform",original_audio[i],i)
+            writer.add_image(f'{dataloader_type} {batch_number}/Initial Spectrogram {item["fname"][batch_number]}',images[batch_number])
+            writer.add_image(f'{dataloader_type} {batch_number}/Generated Spectrogram {item["fname"][batch_number]}',output_image[batch_number],global_step=epoch)
+            writer.add_audio(f'{dataloader_type} {batch_number}/Initial audio {item["fname"][batch_number]}',original_audio[batch_number],sample_rate = 16000)
+            writer.add_audio(f'{dataloader_type} {batch_number}/Initial recreated audio {item["fname"][batch_number]}',init_audio[batch_number],sample_rate = 16000)
+            writer.add_audio(f'{dataloader_type} {batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio[batch_number],sample_rate = 16000,global_step=epoch)
 
-            writer.add_image(f'Batch number {batch_number} Epoch {epoch}/Initial Spectrogram {item["fname"][batch_number]}',images[batch_number])
-            writer.add_image(f'Batch number {batch_number} Epoch {epoch}/Generated Spectrogram {item["fname"][batch_number]}',output_image[batch_number])
-            writer.add_audio(f'Batch number {batch_number} Epoch {epoch}/Initial audio {item["fname"][batch_number]}',original_audio,sample_rate = 16000)
-            writer.add_audio(f'Batch number {batch_number} Epoch {epoch}/Initial recreated audio {item["fname"][batch_number]}',init_audio,sample_rate = 16000)
-            writer.add_audio(f'Batch number {batch_number} Epoch {epoch}/Generated audio {item["fname"][batch_number]}',gen_audio,sample_rate = 16000)
+        #-----------------------------Random latent space exploration-------------------
+        generated = model.generate(device=spec.device)
+        generated_audio = inverse_transform(generated)
+        gen_batch,*_ = generated_audio.shape
+        for i in range(gen_batch):
+            audio = generated_audio[i]
+            writer.add_image(f'Generated/Spectrogram {i}', generated[:,None,:,:][i],global_step=epoch)
+            writer.add_audio(f'Generated/Audio {i}', audio, sample_rate = 16000,global_step=epoch)
 
+        #-----------------------------Interpolation---------------------------
+        spec2= item2['x']
+        spec2 = normalizer(spec2)
+        original_audio2 = inverse_transform(spec2)
+        
+        interp_spec = interp(model,spec,spec2,n_steps_interp)
+
+        n_col = int(np.ceil(np.sqrt(n_steps_interp+1)))
+        for batch_number in range(batch_size):
+            generated_interp, _ = model(interp_spec[:,batch_number,:,:])
+            generated_audio_interp = inverse_transform(generated_interp)
+            fig = plt.figure(figsize=(8., 8.))
+            grid = ImageGrid(fig, 111,  # similar to subplot(111)
+                            nrows_ncols=(n_col, n_col), 
+                            axes_pad=0.5,  # pad between axes in inch.
+                            )
+            
+            audio_cat = torch.tensor([],device=spec.device)
+            for i,z in enumerate(zip(grid,generated_interp,generated_audio_interp)):
+                ax,generated,generated_audio = z
+                ax.imshow(generated.cpu())
+                audio_cat=torch.cat([audio_cat,generated_audio])
+                ax.set_title(f'{i/n_steps_interp}')
+
+            writer.add_figure(f"{dataloader_type} Interpolation {batch_number}/Spectrograms",fig,global_step=epoch)
+            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Original Audio 1', init_audio[batch_number], sample_rate = 16000)
+            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Original Audio 2', original_audio2[batch_number], sample_rate = 16000)
+            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Generated Audio 1', generated_audio_interp[0], sample_rate = 16000,global_step=epoch)
+            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Generated Audio 2', generated_audio_interp[-1], sample_rate = 16000,global_step=epoch)
+            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Audio interpolation', audio_cat, sample_rate = 16000,global_step=epoch)
         writer.close()
-
 
 def log_model_grad_norm(model: nn.Module, tb: SummaryWriter, step: int):
     norms = torch.stack([torch.norm(p.grad.detach(), p=2.0) for p in model.parameters() if p.requires_grad])
