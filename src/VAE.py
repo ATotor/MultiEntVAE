@@ -116,10 +116,45 @@ class VAE(AE):
         full_loss = mse_loss + self.beta * kl
         return full_loss, mse_loss, kl
     
-    def generate(self,device):
-        x = torch.randn((8,self.latent_dims,self.encoding_shape_time),device=device)
+    def generate(self,device,num_samples=8):
+        x = torch.randn((num_samples,self.latent_dims,self.encoding_shape_time),device=device)
         return self.decode(x)
         
+class ConVAE(VAE):
+    def __init__(self, in_channels, latent_dims,hidden_dims,beta,minpitch=21,maxpitch=108):
+        super(ConVAE,self).__init__(in_channels, latent_dims,hidden_dims,beta)
+        self.minpitch = minpitch
+        self.maxpitch = maxpitch
+        self.num_classes = maxpitch-minpitch+1
+        self.label_projector=nn.Sequential(
+            nn.Conv1d(in_channels=self.num_classes, out_channels=self.latent_dims, kernel_size=3,padding='same'),
+            nn.ReLU()
+        )
+    def condition_on_label(self,z:torch.Tensor,label:torch.Tensor):
+        label = label - self.minpitch
+        y = nn.functional.one_hot(label.long(),num_classes=self.num_classes)
+        y = y.reshape((-1,self.num_classes))
+        y = torch.stack([y]*self.encoding_shape_time,dim=2)
+        projected_label = self.label_projector(y.float())
+        return z + projected_label
+    
+    def forward(self, x, label=None):
+        mu, logvar = self.encode(x)
+        z, kl_div = self.latent(mu, logvar)
+        z = z if label is None else self.condition_on_label(z, label)
+        x_tilde = self.decode(z)
+        return x_tilde, kl_div
+    
+    def generate(self, device, num_samples=8, label=None):
+        x = torch.randn((num_samples,self.latent_dims,self.encoding_shape_time),device=device)
+        x = x if label is None else self.condition_on_label(x, label)
+        return self.decode(x)
+    
+    def compute_loss(self, x, label=None):
+        x_tilde, kl = self.forward(x, label)
+        mse_loss = self.recons_criterion(x_tilde,x)
+        full_loss = mse_loss + self.beta * kl
+        return full_loss, mse_loss, kl
 
 def train_VAE(model:nn.Module, 
               dataloader:torch.utils.data.Dataset, 
@@ -148,9 +183,10 @@ def train_VAE(model:nn.Module,
         full_kl = torch.Tensor([0]).to(device)
         for i, item in tqdm(enumerate(dataloader),total=len(dataloader),desc=f"Epoch {epoch} over {epochs}",leave=False):
             x = item['x']
+            pitch = item['pitch'] 
             batch_size = x.shape[0]
             x = training_norm(x)
-            loss, mse_loss, kl_div = model.compute_loss(x)
+            loss, mse_loss, kl_div = model.compute_loss(x,pitch)
             full_loss += loss
             full_mse += mse_loss
             full_kl += kl_div

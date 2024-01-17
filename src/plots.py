@@ -42,11 +42,12 @@ def tensorboard_writer(model:nn.Module,
     with torch.no_grad():
         item = item1
         spec = item['x']
+        pitch = item['pitch']
         spec = normalizer(spec)
         batch_size = spec.shape[0] if batch_size is None else batch_size
 
         images = spec[:,None,:,:]
-        output, _ = model(spec)
+        output, _ = model(spec,pitch)
         output_image = output[:,None,:,:]
 
         init_audio = inverse_transform(spec)
@@ -64,44 +65,45 @@ def tensorboard_writer(model:nn.Module,
             writer.add_audio(f'{dataloader_type} {batch_number}/Generated audio {item["fname"][batch_number]}',gen_audio[batch_number],sample_rate = 16000,global_step=epoch)
 
         #-----------------------------Random latent space exploration-------------------
-        generated = model.generate(device=spec.device)
-        generated_audio = inverse_transform(generated)
-        gen_batch,*_ = generated_audio.shape
-        for i in range(gen_batch):
-            audio = generated_audio[i]
-            writer.add_image(f'Generated/Spectrogram {i}', generated[:,None,:,:][i],global_step=epoch)
-            writer.add_audio(f'Generated/Audio {i}', audio, sample_rate = 16000,global_step=epoch)
+        for pitch in [30,50,70]:
+            generated = model.generate(device=spec.device,label=torch.tensor(pitch,device=spec.device))
+            generated_audio = inverse_transform(generated)
+            gen_batch,*_ = generated_audio.shape
+            for i in range(gen_batch):
+                audio = generated_audio[i]
+                writer.add_image(f'Generated pitch={pitch}/Spectrogram {i}', generated[:,None,:,:][i],global_step=epoch)
+                writer.add_audio(f'Generated pitch={pitch}/Audio {i}', audio, sample_rate = 16000,global_step=epoch)
 
         #-----------------------------Interpolation---------------------------
-        spec2= item2['x']
-        spec2 = normalizer(spec2)
-        original_audio2 = inverse_transform(spec2)
+        # spec2= item2['x']
+        # spec2 = normalizer(spec2)
+        # original_audio2 = inverse_transform(spec2)
         
-        interp_spec = interp(model,spec,spec2,n_steps_interp)
+        # interp_spec = interp(model,spec,spec2,n_steps_interp)
 
-        n_col = int(np.ceil(np.sqrt(n_steps_interp+1)))
-        for batch_number in range(batch_size):
-            generated_interp, _ = model(interp_spec[:,batch_number,:,:])
-            generated_audio_interp = inverse_transform(generated_interp)
-            fig = plt.figure(figsize=(8., 8.))
-            grid = ImageGrid(fig, 111,  # similar to subplot(111)
-                            nrows_ncols=(n_col, n_col), 
-                            axes_pad=0.5,  # pad between axes in inch.
-                            )
+        # n_col = int(np.ceil(np.sqrt(n_steps_interp+1)))
+        # for batch_number in range(batch_size):
+        #     generated_interp, _ = model(interp_spec[:,batch_number,:,:])
+        #     generated_audio_interp = inverse_transform(generated_interp)
+        #     fig = plt.figure(figsize=(8., 8.))
+        #     grid = ImageGrid(fig, 111,  # similar to subplot(111)
+        #                     nrows_ncols=(n_col, n_col), 
+        #                     axes_pad=0.5,  # pad between axes in inch.
+        #                     )
             
-            audio_cat = torch.tensor([],device=spec.device)
-            for i,z in enumerate(zip(grid,generated_interp,generated_audio_interp)):
-                ax,generated,generated_audio = z
-                ax.imshow(generated.cpu())
-                audio_cat=torch.cat([audio_cat,generated_audio])
-                ax.set_title(f'{i/n_steps_interp}')
+        #     audio_cat = torch.tensor([],device=spec.device)
+        #     for i,z in enumerate(zip(grid,generated_interp,generated_audio_interp)):
+        #         ax,generated,generated_audio = z
+        #         ax.imshow(generated.cpu())
+        #         audio_cat=torch.cat([audio_cat,generated_audio])
+        #         ax.set_title(f'{i/n_steps_interp}')
 
-            writer.add_figure(f"{dataloader_type} Interpolation {batch_number}/Spectrograms",fig,global_step=epoch)
-            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Original Audio 1', init_audio[batch_number], sample_rate = 16000)
-            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Original Audio 2', original_audio2[batch_number], sample_rate = 16000)
-            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Generated Audio 1', generated_audio_interp[0], sample_rate = 16000,global_step=epoch)
-            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Generated Audio 2', generated_audio_interp[-1], sample_rate = 16000,global_step=epoch)
-            writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Audio interpolation', audio_cat, sample_rate = 16000,global_step=epoch)
+        #     writer.add_figure(f"{dataloader_type} Interpolation {batch_number}/Spectrograms",fig,global_step=epoch)
+        #     writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Original Audio 1', init_audio[batch_number], sample_rate = 16000)
+        #     writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Original Audio 2', original_audio2[batch_number], sample_rate = 16000)
+        #     writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Generated Audio 1', generated_audio_interp[0], sample_rate = 16000,global_step=epoch)
+        #     writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Generated Audio 2', generated_audio_interp[-1], sample_rate = 16000,global_step=epoch)
+        #     writer.add_audio(f'{dataloader_type} Interpolation {batch_number}/Audio interpolation', audio_cat, sample_rate = 16000,global_step=epoch)
         writer.close()
 
 def log_model_grad_norm(model: nn.Module, tb: SummaryWriter, step: int):

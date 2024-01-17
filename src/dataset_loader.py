@@ -36,12 +36,12 @@ def MNIST_give_dataloader(root='.', batch_size=64):
     
     return train_dataloader, test_dataloader
 
-def NSYNTH_give_dataset(training_path=".",testing_path=".",device=torch.device("cpu"),transform = nn.Identity()):
+def NSYNTH_give_dataset(training_path=".",testing_path=".",device=torch.device("cpu"),transform = nn.Identity(),minpitch=24,maxpitch=96):
     training_data = NSynth(  
                 top_path = training_path , 
                 device = device,
                 n_signal = 2,
-                valid_pitch = [24, 96], 
+                valid_pitch = [minpitch, maxpitch], 
                 valid_inst = None, 
                 valid_source= ["acoustic"],
                 transform = transform,
@@ -50,7 +50,7 @@ def NSYNTH_give_dataset(training_path=".",testing_path=".",device=torch.device("
                 top_path = testing_path , 
                 device = device,
                 n_signal = 2,
-                valid_pitch = [24, 96], 
+                valid_pitch = [minpitch, maxpitch], 
                 valid_inst = None, 
                 valid_source= ["acoustic"],
                 transform = transform,
@@ -58,8 +58,8 @@ def NSYNTH_give_dataset(training_path=".",testing_path=".",device=torch.device("
     
     return training_data, test_data
 
-def NSYNTH_give_dataloader(training_path=".",testing_path=".",batch_size = 64,device=torch.device("cpu"),transform= nn.Identity()):
-    training_data, test_data = NSYNTH_give_dataset(training_path,testing_path,device=device,transform=transform)
+def NSYNTH_give_dataloader(training_path=".",testing_path=".",batch_size = 64,device=torch.device("cpu"),transform= nn.Identity(),minpitch=24,maxpitch=96):
+    training_data, test_data = NSYNTH_give_dataset(training_path,testing_path,device=device,transform=transform,minpitch=minpitch,maxpitch=maxpitch)
     train_dataloader = DataLoader(training_data, batch_size, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size, shuffle=True)
 

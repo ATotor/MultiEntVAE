@@ -53,5 +53,6 @@ class NSynth(Dataset):
         audio, _ = li.load(fname, sr=16000, mono=True, duration=self.n_signal)
         audio = torch.from_numpy(audio).to(self.device)
         pitch = self.meta[_fname]['pitch']
+        pitch = torch.tensor([pitch],device=self.device)
         return {"x": self.transform(audio), "pitch": pitch, "fname": _fname,  "audio" : audio}
     

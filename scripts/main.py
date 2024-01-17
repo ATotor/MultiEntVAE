@@ -61,12 +61,15 @@ inverse_transform = nn.Sequential(
     #librosa_GriffinLim(n_fft=nfft, hop_length=hop_length),
     Normalize('max1')
 ).to(device)
+#-----------------------------------------------Dataset construction-----------------------------------------------------------------
+minpitch=24
+maxpitch=96
 
 training_file = "/data/atiam_ml_mvae/nsynth-train"
 validation_file = "/data/atiam_ml_mvae/nsynth-valid"
 testing_file = "data/nsynth-test"
 
-train_dataloader, valid_dataloader = NSYNTH_give_dataloader(training_file,validation_file,batch_size=batch_size,device=device,transform=transform)
+train_dataloader, valid_dataloader = NSYNTH_give_dataloader(training_file,validation_file,batch_size=batch_size,device=device,transform=transform,minpitch=minpitch,maxpitch=maxpitch)
 
 training_norm, training_denorm = find_normalizer(train_dataloader,"test")
 valid_norm, valid_denorm = find_normalizer(valid_dataloader,'test')
@@ -87,10 +90,13 @@ elif load:
     model = load_model(load)
     model = model.to(device)
 else:
-    model = VAE(in_channels=train_dummy_item1['x'].shape[1], 
+    model = ConVAE(in_channels=train_dummy_item1['x'].shape[1], 
                 hidden_dims=[256,512,512], 
                 latent_dims=256, 
-                beta = beta).to(device)
+                beta = beta,
+                minpitch=minpitch,
+                maxpitch=maxpitch
+                ).to(device)
 
 n_params = sum(p.numel() for p in model.parameters())
 print(f"Number of parameters : {n_params:}")
