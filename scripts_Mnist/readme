@@ -1,3 +1,9 @@
 This folder contains the code used to test, train and process Mnist datas.
 To train/evaluate A VAE,CVAE-linear execute the VAE_Mnist.py file. By default, the model is a CVAE, to only have an VAE, comment the label=item[1] line
 in the training loop and in the evaluation loop.
+
+To use Grid_search_mnist.py, modify on line 184 the path to your work directory. The results will be saved in a new child directory containing a .txt files having all 
+the necessary information.
+
+Finaly to train/evaluate a Conv_VAE,Conv-CVAE execute the Conv_VAE_Mnist.py file. By default, the model is a CVAE, to only have an VAE, comment the label=item[1] line
+in the training loop and in the evaluation loop.
