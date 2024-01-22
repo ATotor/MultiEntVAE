@@ -1,0 +1,3 @@
+This folder contains the code used to test, train and process Mnist datas.
+To train/evaluate A VAE,CVAE-linear execute the VAE_Mnist.py file. By default, the model is a CVAE, to only have an VAE, comment the label=item[1] line
+in the training loop and in the evaluation loop.
